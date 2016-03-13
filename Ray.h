@@ -1,5 +1,5 @@
 #ifndef RAY_H
-#define _RAY_H
+#define RAY_H
 
 #include "math.h"
 
@@ -13,6 +13,7 @@ public:
     Ray (Vect, Vect);
     
     // method functions
+    // TODO: remove annoying 'Ray' part of name
     Vect getRayOrigin () { return origin; }
     Vect getRayDirection() { return direction; }    
     

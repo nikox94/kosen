@@ -1,5 +1,5 @@
-#ifndef _Light_H
-#define _Light_H
+#ifndef Light_H
+#define Light_H
 
 // #include "Vect.h"
 // #include "Color.h"

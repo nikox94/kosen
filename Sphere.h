@@ -20,7 +20,7 @@ class Sphere : public Object {
         // method functions
         Vect getCenter () { return center; }
         double getRadius() { return radius; }
-        Color getColor () { return color; }
+        virtual Color getColor () { return color; }
 
         Vect getNormalAt(Vect point) {
             // normal always points away from the center of a Sphere
@@ -28,7 +28,7 @@ class Sphere : public Object {
             return normal_Vect;
         }
 
-        double findIntersection(Ray ray) {
+        virtual double findIntersection(Ray ray) {
             Vect ray_origin = ray.getRayOrigin();
             double ray_origin_x = ray_origin.getVectX();
             double ray_origin_y = ray_origin.getVectY();

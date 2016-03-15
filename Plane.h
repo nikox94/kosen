@@ -20,14 +20,14 @@ class Plane : public Object {
         // method functions
         Vect getNormal () { return normal; }
         double getDistance() { return distance; }
-        Color getColor () { return color; }
+        virtual Color getColor () { return color; }
 
         // TODO: perhaps remove this?
         Vect getNormalAt(Vect point) {
             return normal;
         }
 
-        double findIntersection(Ray ray) {
+        virtual double findIntersection(Ray ray) {
             Vect ray_direction = ray.getRayDirection();
 
             // TODO: check case ray_dir = - normal, but

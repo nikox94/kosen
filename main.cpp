@@ -219,9 +219,18 @@ int main (int argc, char *argv[]) {
 
             int index_of_winning_object = winningObjectIndex(intersections);
 
-            pixels[thisone].r = 0.1+0.001*x+0.1*y;
-            pixels[thisone].g = 0.8+0.001*x-0.1*y;
-            pixels[thisone].b = 0.05+0.001*x+0.1*y;
+            if(index_of_winning_object == -1) {
+                pixels[thisone].r = 0.0;
+                pixels[thisone].g = 0.0;
+                pixels[thisone].b = 0.0;
+            }
+            else {
+                Color current_obj_color = scene_objects.at(index_of_winning_object)->getColor();
+                pixels[thisone].r = current_obj_color.getRed();
+                pixels[thisone].g = current_obj_color.getGreen();
+                pixels[thisone].b = current_obj_color.getBlue();
+            }
+
         }
     }
     savebmp("scene.bmp", width, height, dpi, pixels);

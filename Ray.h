@@ -2,21 +2,22 @@
 #define RAY_H
 
 #include "math.h"
+#include "Vect.h"
 
 class Ray {
     Vect origin, direction;
-    
+
 public:
-    
+
     Ray ();
-    
+
     Ray (Vect, Vect);
-    
+
     // method functions
     // TODO: remove annoying 'Ray' part of name
     Vect getRayOrigin () { return origin; }
-    Vect getRayDirection() { return direction; }    
-    
+    Vect getRayDirection() { return direction; }
+
 };
 
 Ray::Ray () {

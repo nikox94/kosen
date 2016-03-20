@@ -22,8 +22,7 @@ class Plane : public Object {
         double getDistance() { return distance; }
         virtual Color getColor () { return color; }
 
-        // TODO: perhaps remove this?
-        Vect getNormalAt(Vect point) {
+        virtual Vect getNormalAt(Vect point) {
             return normal;
         }
 

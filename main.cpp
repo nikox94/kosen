@@ -188,7 +188,7 @@ Color getColorAt(Vect intersection_position, Vect intersecting_ray_direction, ve
 
         int index_of_winning_object_with_reflection = winningObjectIndex(reflection_intersections);
 
-        if (index_of_winning_object_with_reflection == -1) {
+        if (index_of_winning_object_with_reflection != -1) {
             // reflection ray did not intersect with anything else
             if (reflection_intersections.at(index_of_winning_object_with_reflection) > accuracy) {
                 // determine position and direction at the point of intersection

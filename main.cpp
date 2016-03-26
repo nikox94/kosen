@@ -145,7 +145,75 @@ Color getColorAt(Vect intersection_position, Vect intersecting_ray_direction, ve
     Color winning_object_color = scene_objects.at(index_of_winning_object)->getColor();
     Vect winning_object_normal = scene_objects.at(index_of_winning_object)->getNormalAt(intersection_position);
 
+    // Checkerboard pattern
+    if (winning_object_color.getSpecial() == 2.0) {
+        int square = (int) floor(intersection_position.getVectX()) + (int) floor(intersection_position.getVectZ());
+
+        if ( square % 2 == 0 ) {
+            // black tile
+            winning_object_color.setRed(0);
+            winning_object_color.setGreen(0);
+            winning_object_color.setBlue(0);
+        }
+        else {
+            //white tile
+            winning_object_color.setRed(1);
+            winning_object_color.setGreen(1);
+            winning_object_color.setBlue(1);
+        }
+    }
+
     Color final_color = winning_object_color.scale(ambientlight);
+
+    // Reflections
+    if ( winning_object_color.getSpecial() > 0 && winning_object_color.getSpecial() <= 1) {
+        // reflection from object with specular intensity
+        double dot1 = winning_object_normal.dot(intersecting_ray_direction.negative());
+        Vect scaled1 = winning_object_normal.mult(dot1);
+        Vect add1 = scaled1.add(intersecting_ray_direction);
+        Vect scaled2 = add1.mult(2);
+        Vect add2 = intersecting_ray_direction.negative().add(scaled2);
+        Vect reflection_direction = add2.normalise();
+
+        // create reflection ray
+        Ray reflection_ray (intersection_position, reflection_direction);
+
+        // determine what the ray intersects with first
+        vector<double> reflection_intersections;
+
+        // TODO: Think about a more natural limit for reflections
+        for (int reflection_index = 0; reflection_index < scene_objects.size() ; reflection_index++) {
+            reflection_intersections.push_back(scene_objects.at(reflection_index)->findIntersection(reflection_ray));
+        }
+
+        int index_of_winning_object_with_reflection = winningObjectIndex(reflection_intersections);
+
+        if (index_of_winning_object_with_reflection == -1) {
+            // reflection ray did not intersect with anything else
+            if (reflection_intersections.at(index_of_winning_object_with_reflection) > accuracy) {
+                // determine position and direction at the point of intersection
+                // with the ray
+                // the ray only affects the color if it reflected off of something
+                Vect reflection_intersection_position = intersection_position
+                                                          .add(reflection_direction
+                                                          .mult(reflection_intersections.at(index_of_winning_object_with_reflection)));
+                Vect reflection_intersection_ray_direction = reflection_direction;
+
+                // Recursive call
+                Color reflection_intersection_color = getColorAt(reflection_intersection_position,
+                                                                 reflection_intersection_ray_direction,
+                                                                 scene_objects,
+                                                                 index_of_winning_object_with_reflection,
+                                                                 accuracy,
+                                                                 ambientlight,
+                                                                 light_sources
+                                                                );
+                final_color = final_color.add(reflection_intersection_color.scale(winning_object_color.getSpecial()));
+            }
+        }
+    }
+
+
 
     for (int light_index = 0; light_index < light_sources.size() ; light_index++) {
         Vect light_direction = light_sources.at(light_index)->getPosition().add(intersection_position.negative()).normalise();
@@ -204,6 +272,10 @@ Color getColorAt(Vect intersection_position, Vect intersecting_ray_direction, ve
 int main (int argc, char *argv[]) {
     cout << "rendering..." << endl;
 
+    // Measure the time of execution of the rendering
+    clock_t t1, t2;
+    t1 = clock();
+
     int dpi = 72;
     int width = 640;
     int height = 480;
@@ -231,7 +303,7 @@ int main (int argc, char *argv[]) {
 
     Color white_light (1.0, 1.0, 1.0, 0.0);
     Color green (0.5, 1.0, 0.5, 0.3);
-    Color yellow (1.0, 1.0, 0.0, 0.0);
+    Color yellow (1.0, 1.0, 0.0, 2);
     Color red (1, 0, 0, 0.5);
     Color gray (0.5, 0.5, 0.5, 0.0);
     Color black (0.0, 0.0, 0.0, 0.0);
@@ -318,6 +390,11 @@ int main (int argc, char *argv[]) {
         }
     }
     savebmp("scene.bmp", width, height, dpi, pixels);
+
+    // Calculate the time for rendering
+    t2 = clock();
+    float diff = ( (float) t2 - (float) t1) / CLOCKS_PER_SEC;
+    cout << "This rendering took "<< diff << "seconds.\n";
 
     return 0;
 }

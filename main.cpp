@@ -240,8 +240,8 @@ Color getColorAt(Vect intersection_position, Vect intersecting_ray_direction, ve
                     if (secondary_intersections.at(c) <= distance_to_light_magnitude) {
                         shadowed = true;
                     }
+                    break;
                 }
-                break;
             }
 
             if (shadowed == false) {

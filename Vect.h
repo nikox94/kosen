@@ -45,6 +45,11 @@ public:
     Vect mult (double s) {
         return Vect(s*x, s*y, s*z);
     }
+
+    // get the Vect this B, where this and B are point Vectors from the origin, i.e. OA and OB.
+    Vect getVectBetweenTwoPoints(Vect B) {
+        return B.add(this->negative());
+    }
 };
 
 Vect::Vect () {

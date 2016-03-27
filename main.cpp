@@ -19,6 +19,7 @@
 #include <Light.h>
 #include <Sphere.h>
 #include <Plane.h>
+#include <Triangle.h>
 
 using namespace std;
 
@@ -307,7 +308,7 @@ int main (int argc, char *argv[]) {
     Color green (0.5, 1.0, 0.5, 0.3);
     Color yellow (1.0, 1.0, 0.0, 2);
     Color red (1, 0, 0, 0.5);
-    Color gray (0.5, 0.5, 0.5, 0.0);
+    Color cyan (0, 1, 1, 0.2);
     Color black (0.0, 0.0, 0.0, 0.0);
 
     Vect light_position (-7, 10, -10);
@@ -319,11 +320,16 @@ int main (int argc, char *argv[]) {
     Sphere scene_sphere (O, 1, green);
     Sphere scene_sphere_2 (Z.mult(5), 1, red);
     Plane scene_plane (Y, -1, yellow);
+//     Triangle scene_triangle(Vect(3,0,0),
+//                             Vect(0,3,0),
+//                             Vect(0,0,3),
+//                             cyan);
 
     vector<Object*> scene_objects;
     scene_objects.push_back(dynamic_cast<Object*>(&scene_sphere));
     scene_objects.push_back(dynamic_cast<Object*>(&scene_sphere_2));
     scene_objects.push_back(dynamic_cast<Object*>(&scene_plane));
+//     scene_objects.push_back(dynamic_cast<Object*>(&scene_triangle));
 
 
     int thisone, aa_index;

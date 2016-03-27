@@ -282,6 +282,8 @@ int main (int argc, char *argv[]) {
     int n = width*height;
     RGBType *pixels = new RGBType[n];
 
+    int aadepth = 1; // Anti-aliasing depth
+    double aathreshold = 0.1;
     double aspectratio = (double) width / (double) height;
     double ambientlight = 0.2;
     double accuracy = 0.000001;
@@ -324,72 +326,137 @@ int main (int argc, char *argv[]) {
     scene_objects.push_back(dynamic_cast<Object*>(&scene_plane));
 
 
-    int thisone;
+    int thisone, aa_index;
     double xamnt, yamnt;
+    // Anti-aliasing
+    // Start with a blank pixel
+    double tempRed[aadepth*aadepth];
+    double tempGreen[aadepth*aadepth];
+    double tempBlue[aadepth*aadepth];
 
+    // pixel main loop
     for (int x = 0; x < width; x++) {
         for (int y = 0; y < height; y++) {
             thisone = y*width + x;
 
-            // start with no anti-aliasing
-            if (width > height) {
-                // the image is wider than it is tall
-                xamnt = ((x+0.5)/width)*aspectratio - ((width-height)/ (double) height);
-                yamnt = ((height - y) + 0.5)/height;
-            }
-            else if (height > width) {
-                // the image is taller than it is wide
-                xamnt = (x+0.5)/width;
-                yamnt = (((height - y) + 0.5)/height)/aspectratio - ((height - width)/(double) width)/2;
-            }
-            else {
-                // the image is square
-                xamnt = (x+0.5)/width;
-                yamnt = ((height - y) + 0.5)/height;
-            }
+            // Anti-aliasing loop
+            for (int aax = 0; aax < aadepth; aax++) {
+                for (int aay = 0; aay < aadepth; aay++) {
+                    aa_index = aay*aadepth + aax;
+                    srand(time(0));
 
-            Vect cam_ray_origin = scene_cam.getCameraPosition();
-            Vect cam_ray_direction = camdir.add(camright.mult(xamnt-0.5).add(camdown.mult(yamnt - 0.5))).normalise();
+                    // create the ray from the camera to this pixel
+                    if (aadepth == 1) {
+                        // No anti-aliasing
+                        if (width > height) {
+                            // the image is wider than it is tall
+                            xamnt = ((x+0.5)/width)*aspectratio - ((width-height)/ (double) height);
+                            yamnt = ((height - y) + 0.5)/height;
+                        }
+                        else if (height > width) {
+                            // the image is taller than it is wide
+                            xamnt = (x+0.5)/width;
+                            yamnt = (((height - y) + 0.5)/height)/aspectratio - ((height - width)/(double) width)/2;
+                        }
+                        else {
+                            // the image is square
+                            xamnt = (x+0.5)/width;
+                            yamnt = ((height - y) + 0.5)/height;
+                        }
+                    }
+                    else
+                    {
+                        double offset = (double) aax/((double) aadepth - 1);
+                        // anti-aliasing
+                        if (width > height) {
+                            // the image is wider than it is tall
+                            xamnt = (((x + offset)/width)*aspectratio - ((width-height)/ (double) height));
+                            yamnt = ((height - y) + offset)/height;
+                        }
+                        else if (height > width) {
+                            // the image is taller than it is wide
+                            xamnt = (x+offset)/width;
+                            yamnt = (((height - y) + offset)/height)/aspectratio - ((height - width)/(double) width)/2;
+                        }
+                        else {
+                            // the image is square
+                            xamnt = (x+offset)/width;
+                            yamnt = ((height - y) + offset)/height;
+                        }
+                    }
 
-            Ray cam_ray (cam_ray_origin, cam_ray_direction);
+                    Vect cam_ray_origin = scene_cam.getCameraPosition();
+                    Vect cam_ray_direction = camdir.add(camright.mult(xamnt-0.5).add(camdown.mult(yamnt - 0.5))).normalise();
 
-            // Calculate all object intersections with cam_ray
-            vector<double> intersections;
+                    Ray cam_ray (cam_ray_origin, cam_ray_direction);
 
-            for (int index = 0; index < scene_objects.size(); index++) {
-                intersections.push_back(scene_objects.at(index)->findIntersection(cam_ray));
-            }
+                    // Calculate all object intersections with cam_ray
+                    vector<double> intersections;
 
-            int index_of_winning_object = winningObjectIndex(intersections);
+                    for (int index = 0; index < scene_objects.size(); index++) {
+                        intersections.push_back(scene_objects.at(index)->findIntersection(cam_ray));
+                    }
 
-            if(index_of_winning_object == -1) {
-                pixels[thisone].r = 0.0;
-                pixels[thisone].g = 0.0;
-                pixels[thisone].b = 0.0;
-            }
-            else {
-                if(intersections.at(index_of_winning_object) > accuracy) {
-                    // determine the position and direction vectors at intersection
+                    int index_of_winning_object = winningObjectIndex(intersections);
 
-                    Vect intersection_position = cam_ray_origin.add(cam_ray_direction.mult(intersections.at(index_of_winning_object)));
-                    Vect intersecting_ray_direction = cam_ray_direction;
+                    if(index_of_winning_object == -1) {
+                        tempRed[aa_index] = 0.0;
+                        tempGreen[aa_index] = 0.0;
+                        tempBlue[aa_index] = 0.0;
+                    }
+                    else {
+                        if(intersections.at(index_of_winning_object) > accuracy) {
+                            // determine the position and direction vectors at intersection
 
-                    Color current_obj_color = getColorAt(intersection_position,
-                                                         intersecting_ray_direction,
-                                                         scene_objects,
-                                                         index_of_winning_object,
-                                                         accuracy,
-                                                         ambientlight,
-                                                         light_sources);
-                    pixels[thisone].r = current_obj_color.getRed();
-                    pixels[thisone].g = current_obj_color.getGreen();
-                    pixels[thisone].b = current_obj_color.getBlue();
+                            Vect intersection_position = cam_ray_origin.add(cam_ray_direction.mult(intersections.at(index_of_winning_object)));
+                            Vect intersecting_ray_direction = cam_ray_direction;
+
+                            Color current_obj_color = getColorAt(intersection_position,
+                                                                 intersecting_ray_direction,
+                                                                 scene_objects,
+                                                                 index_of_winning_object,
+                                                                 accuracy,
+                                                                 ambientlight,
+                                                                 light_sources);
+                            tempRed[aa_index] = current_obj_color.getRed();
+                            tempGreen[aa_index] = current_obj_color.getGreen();
+                            tempBlue[aa_index] = current_obj_color.getBlue();
+                        }
+                    }
+                    // end of Anti-aliasing loop
                 }
             }
+            // end of pixel loop
 
+            // average the pixel color
+            double totalRed = 0;
+            double totalGreen = 0;
+            double totalBlue = 0;
+
+            for (int iRed = 0; iRed < aadepth*aadepth; iRed++) {
+                totalRed += tempRed[iRed];
+            }
+
+            for (int iGreen = 0; iGreen < aadepth*aadepth; iGreen++) {
+                totalGreen += tempGreen[iGreen];
+            }
+
+            for (int iBlue = 0; iBlue < aadepth*aadepth; iBlue++) {
+                totalBlue += tempBlue[iBlue];
+            }
+
+            double avgRed = totalRed/(aadepth*aadepth);
+            double avgGreen = totalGreen/(aadepth*aadepth);
+            double avgBlue = totalBlue/(aadepth*aadepth);
+
+            pixels[thisone].r = avgRed;
+            pixels[thisone].g = avgGreen;
+            pixels[thisone].b = avgBlue;
         }
     }
     savebmp("scene.bmp", width, height, dpi, pixels);
+
+    delete pixels, tempRed, tempGreen, tempBlue;
 
     // Calculate the time for rendering
     t2 = clock();

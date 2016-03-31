@@ -271,21 +271,90 @@ Color getColorAt(Vect intersection_position, Vect intersecting_ray_direction, ve
 }
 
 int main (int argc, char *argv[]) {
+
+    int WIDTH = 640, HEIGHT = 480;
+    int MAXDEPTH = 5;
+    //Vect LOOKFROM, LOOKAT, UP;
+    double FOV;
+    string OUTFILE;
+
+
+
+
     cout << "rendering..." << endl;
 
     // Measure the time of execution of the rendering
     clock_t t1, t2;
     t1 = clock();
 
+    // Read input file with instructions
+    if (argc != 2) {
+        cout << "Please specify the scene file to read!" << endl;
+        exit(1);
+    }
+    // TODO: Check and validate filename and put a proper user message as help
+
+    ifstream sceneFile;
+    sceneFile.open(argv[1]);
+
+    if (!sceneFile.is_open()) {
+        cout << "Could not open file " << argv[1] << endl;
+        exit(1);
+    }
+
+    /* TODO: Implement a more effective parser as explained
+     * here http://inst.eecs.berkeley.edu/~cs184/fa09/resources/sec_TextParsing.pdf
+     */
+    string line;
+    while ( getline (sceneFile, line) ) {
+        if ( line[0] == '#' ) continue;
+        if ( line.substr(0, 4) == "size") {
+            int spacePos1 = line.find(" ");
+            int spacePos2 = line.find(" ", spacePos1 + 1);
+            WIDTH = atoi ( line.substr(spacePos1 + 1, spacePos2 - 1).c_str() );
+            HEIGHT = atoi ( line.substr(spacePos2 + 1, line.length()).c_str() );
+            continue;
+        }
+        if ( line.substr(0, 6) == "output") {
+            int spacePos1 = line.find(" ");
+            OUTFILE = line.substr(spacePos1 + 1, line.length());
+            continue;
+        }
+        if ( line.substr(0, 8) == "maxdepth") {
+            int spacePos1 = line.find(" ");
+            int maxdepth = atoi (line.substr(spacePos1 + 1, line.length()).c_str());
+            // We'll ignore this parameter for now.
+            continue;
+        }
+        // Experiment with some string parsing
+        //stringstream ss (stringstream::out | stringstream::in);
+/*        ss.str(line);
+        string op;
+        ss >> op;
+        if ( op.compare("camera") == 0 ) {
+            double x, y, z;
+            ss >> x >> y >> z;
+            //LOOKFROM = Vect(x, y, z);
+            ss >> x >> y >> z;
+            //LOOKAT = Vect(x, y, z);
+            ss >> x >> y >> z;
+            //UP = Vect(x, y, z);
+            ss >> FOV;
+            continue;
+        }*/
+
+    }
+
+    sceneFile.close();
+
+
     int dpi = 72;
-    int width = 640;
-    int height = 480;
-    int n = width*height;
+    int n = WIDTH*HEIGHT;
     RGBType *pixels = new RGBType[n];
 
     int aadepth = 1; // Anti-aliasing depth
     double aathreshold = 0.1;
-    double aspectratio = (double) width / (double) height;
+    double aspectratio = (double) WIDTH / (double) HEIGHT;
     double ambientlight = 0.2;
     double accuracy = 0.000001;
 
@@ -294,15 +363,16 @@ int main (int argc, char *argv[]) {
     Vect Y (0,1,0);
     Vect Z (0,0,1);
 
-    Vect campos (3, 1.5, -4);
+    Vect LOOKFROM (0, 0, 0);
+    Vect LOOKAT (0 , 0, -1);
+    Vect UP (0, 1, 0);
 
-    Vect look_at (0, 0, 0);
-    Vect diff_btw = campos.add(look_at.negative());
+    Vect diff_btw = LOOKFROM.add(LOOKAT.negative());
 
     Vect camdir = diff_btw.negative().normalise();
-    Vect camright = Y.cross(camdir).normalise();
+    Vect camright = UP.cross(camdir).normalise();
     Vect camdown = camright.cross(camdir);
-    Camera scene_cam (campos, camdir, camright, camdown);
+    Camera scene_cam (LOOKFROM, camdir, camright, camdown);
 
     Color white_light (1.0, 1.0, 1.0, 0.0);
     Color green (0.5, 1.0, 0.5, 0.3);
@@ -341,9 +411,9 @@ int main (int argc, char *argv[]) {
     double tempBlue[aadepth*aadepth];
 
     // pixel main loop
-    for (int x = 0; x < width; x++) {
-        for (int y = 0; y < height; y++) {
-            thisone = y*width + x;
+    for (int x = 0; x < WIDTH; x++) {
+        for (int y = 0; y < HEIGHT; y++) {
+            thisone = y*WIDTH + x;
 
             // Anti-aliasing loop
             for (int aax = 0; aax < aadepth; aax++) {
@@ -354,40 +424,40 @@ int main (int argc, char *argv[]) {
                     // create the ray from the camera to this pixel
                     if (aadepth == 1) {
                         // No anti-aliasing
-                        if (width > height) {
+                        if (WIDTH > HEIGHT) {
                             // the image is wider than it is tall
-                            xamnt = ((x+0.5)/width)*aspectratio - ((width-height)/ (double) height);
-                            yamnt = ((height - y) + 0.5)/height;
+                            xamnt = ((x+0.5)/WIDTH)*aspectratio - ((WIDTH-HEIGHT)/ (double) HEIGHT);
+                            yamnt = ((HEIGHT - y) + 0.5)/HEIGHT;
                         }
-                        else if (height > width) {
+                        else if (HEIGHT > WIDTH) {
                             // the image is taller than it is wide
-                            xamnt = (x+0.5)/width;
-                            yamnt = (((height - y) + 0.5)/height)/aspectratio - ((height - width)/(double) width)/2;
+                            xamnt = (x+0.5)/WIDTH;
+                            yamnt = (((HEIGHT - y) + 0.5)/HEIGHT)/aspectratio - ((HEIGHT - WIDTH)/(double) WIDTH)/2;
                         }
                         else {
                             // the image is square
-                            xamnt = (x+0.5)/width;
-                            yamnt = ((height - y) + 0.5)/height;
+                            xamnt = (x+0.5)/WIDTH;
+                            yamnt = ((HEIGHT - y) + 0.5)/HEIGHT;
                         }
                     }
                     else
                     {
                         double offset = (double) aax/((double) aadepth - 1);
                         // anti-aliasing
-                        if (width > height) {
+                        if (WIDTH > HEIGHT) {
                             // the image is wider than it is tall
-                            xamnt = (((x + offset)/width)*aspectratio - ((width-height)/ (double) height));
-                            yamnt = ((height - y) + offset)/height;
+                            xamnt = (((x + offset)/WIDTH)*aspectratio - ((WIDTH-HEIGHT)/ (double) HEIGHT));
+                            yamnt = ((HEIGHT - y) + offset)/HEIGHT;
                         }
-                        else if (height > width) {
+                        else if (HEIGHT > WIDTH) {
                             // the image is taller than it is wide
-                            xamnt = (x+offset)/width;
-                            yamnt = (((height - y) + offset)/height)/aspectratio - ((height - width)/(double) width)/2;
+                            xamnt = (x+offset)/WIDTH;
+                            yamnt = (((HEIGHT - y) + offset)/HEIGHT)/aspectratio - ((HEIGHT - WIDTH)/(double) WIDTH)/2;
                         }
                         else {
                             // the image is square
-                            xamnt = (x+offset)/width;
-                            yamnt = ((height - y) + offset)/height;
+                            xamnt = (x+offset)/WIDTH;
+                            yamnt = ((HEIGHT - y) + offset)/HEIGHT;
                         }
                     }
 
@@ -460,7 +530,7 @@ int main (int argc, char *argv[]) {
             pixels[thisone].b = avgBlue;
         }
     }
-    savebmp("scene.bmp", width, height, dpi, pixels);
+    savebmp(OUTFILE.c_str(), WIDTH, HEIGHT, dpi, pixels);
 
     delete pixels, tempRed, tempGreen, tempBlue;
 

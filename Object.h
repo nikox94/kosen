@@ -5,6 +5,9 @@
 #include <Vect.h>
 #include <Color.h>
 
+/**
+ * Parent class for all scene objects.
+ */
 class Object {
         public:
 
@@ -13,7 +16,7 @@ class Object {
         // method functions
         virtual Color getColor () { return Color(0.0, 0.0, 0.0, 0); }
 
-        virtual Vect getNormalAt(Vect intersection_position) {
+        virtual Vect getNormalAt(Vect point) {
             return Vect(0, 0, 0);
         }
 

@@ -21,8 +21,8 @@ public:
 };
 
 Ray::Ray () {
-    Vect a;
-    Ray(a, a);
+    Vect O(0,0,0);
+    Ray(O, O);
 }
 
 Ray::Ray (Vect origin, Vect direction) {

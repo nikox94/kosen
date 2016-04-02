@@ -17,6 +17,7 @@ public:
     double getVectY() { return y; }
     double getVectZ() { return z; }
 
+    // TODO:Rename to modulus
     double magnitude() {
         return sqrt(x*x+y*y+z*z);
     }
@@ -35,7 +36,7 @@ public:
     }
 
     Vect cross (Vect v) {
-        return Vect(y*v.z-z*v.y, z*v.x - x*v.z, x*v.y - y*v.x);
+        return Vect(y*v.z-v.y*z, z*v.x - v.z*x, x*v.y - v.x*y);
     }
 
     Vect add (Vect v) {
@@ -46,7 +47,7 @@ public:
         return Vect(s*x, s*y, s*z);
     }
 
-    // get the Vect this B, where this and B are point Vectors from the origin, i.e. OA and OB.
+    // get the Vect between this one and B, where this and B are point Vectors from the origin, i.e. OA and OB to get AB.
     Vect getVectBetweenTwoPoints(Vect B) {
         return B.add(this->negative());
     }

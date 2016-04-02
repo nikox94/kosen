@@ -2,6 +2,8 @@
 #define COLOR_H
 
 class Color {
+	// The RGB will be values between 0.0 and 1.0
+	// The special number is... special
 	double red, green, blue, special;
 
 	public:
@@ -41,6 +43,7 @@ class Color {
 		return Color ((red + color.red)/2, (green + color.green)/2, (blue + color.blue)/2, special);
 	}
 
+	// Clip a colour if it got out of bounds
 	Color clip() {
 		double alllight = red + green + blue;
 		double excesslight = alllight - 3;
@@ -61,9 +64,7 @@ class Color {
 };
 
 Color::Color () {
-	red = 0.5;
-	green = 0.5;
-	blue = 0.5;
+	Color(0.5, 0.5, 0.5, 0);
 }
 
 Color::Color (double r, double g, double b, double s) {

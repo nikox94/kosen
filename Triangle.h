@@ -17,9 +17,13 @@ class Triangle : public Object {
         Triangle (Vect, Vect, Vect, Color);
 
         // method functions
-        Vect getCA() {
-            return C.getVectBetweenTwoPoints(A);
+        Vect getAC() {
+            return A.getVectBetweenTwoPoints(C);
         }
+        
+        Vect getCA() {
+	    return getAC().negative();
+	}
 
         Vect getAB() {
             return A.getVectBetweenTwoPoints(B);
@@ -30,7 +34,7 @@ class Triangle : public Object {
         }
 
         Vect getNormal () {
-            Vect AC = getCA().negative();
+            Vect AC = getAC();
             Vect AB = getAB();
             Vect normal = AC.cross(AB).normalise();
             return normal;

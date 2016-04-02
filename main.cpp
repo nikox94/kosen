@@ -23,13 +23,21 @@
 
 using namespace std;
 
+// These are external variables to be used in the program
+int WIDTH = 640, HEIGHT = 480, DPI = 72;
+int MAXDEPTH = 5, AADEPTH = 1;
+Vect LOOKFROM, LOOKAT, UP;
+double FOV;
+string OUTFILE;
+Camera SCENE_CAM;
+
 struct RGBType {
     double r;
     double g;
     double b;
 };
 
-void savebmp (const char *filename, int w, int h, int dpi, RGBType *data) {
+void savebmp (const char *filename, int w, int h, RGBType *data) {
     FILE *f;
     int k = w*h;
     int s = 4*k;
@@ -38,7 +46,7 @@ void savebmp (const char *filename, int w, int h, int dpi, RGBType *data) {
     double factor = 39.375;
     int m = static_cast<int>(factor);
 
-    int ppm = dpi*m;
+    int ppm = DPI*m;
 
     unsigned char bmpfileheader[14] = {'B', 'M', 0, 0, 0, 0,  0, 0, 0, 0,  54, 0, 0, 0};
     unsigned char bmpinfoheader[40] = {40,0,0,0, 0,0,0,0, 0,0,0,0, 1,0,24,0};
@@ -93,6 +101,10 @@ void savebmp (const char *filename, int w, int h, int dpi, RGBType *data) {
     fclose(f);
 }
 
+/**
+ * Gets an array of all objects that a ray intersects and finds the winning one's index.
+ *
+ */
 int winningObjectIndex(vector<double> object_intersections) {
     // return the index of the winning intersections
     int index_of_minimum_value;
@@ -270,138 +282,17 @@ Color getColorAt(Vect intersection_position, Vect intersecting_ray_direction, ve
     return final_color.clip();
 }
 
-int main (int argc, char *argv[]) {
-
-    int WIDTH = 640, HEIGHT = 480;
-    int MAXDEPTH = 5;
-    //Vect LOOKFROM, LOOKAT, UP;
-    double FOV;
-    string OUTFILE;
-
-
-
-
-    cout << "rendering..." << endl;
-
-    // Measure the time of execution of the rendering
-    clock_t t1, t2;
-    t1 = clock();
-
-    // Read input file with instructions
-    if (argc != 2) {
-        cout << "Please specify the scene file to read!" << endl;
-        exit(1);
-    }
-    // TODO: Check and validate filename and put a proper user message as help
-
-    ifstream sceneFile;
-    sceneFile.open(argv[1]);
-
-    if (!sceneFile.is_open()) {
-        cout << "Could not open file " << argv[1] << endl;
-        exit(1);
-    }
-
-    /* TODO: Implement a more effective parser as explained
-     * here http://inst.eecs.berkeley.edu/~cs184/fa09/resources/sec_TextParsing.pdf
-     */
-    string line;
-    while ( getline (sceneFile, line) ) {
-        if ( line[0] == '#' ) continue;
-        if ( line.substr(0, 4) == "size") {
-            int spacePos1 = line.find(" ");
-            int spacePos2 = line.find(" ", spacePos1 + 1);
-            WIDTH = atoi ( line.substr(spacePos1 + 1, spacePos2 - 1).c_str() );
-            HEIGHT = atoi ( line.substr(spacePos2 + 1, line.length()).c_str() );
-            continue;
-        }
-        if ( line.substr(0, 6) == "output") {
-            int spacePos1 = line.find(" ");
-            OUTFILE = line.substr(spacePos1 + 1, line.length());
-            continue;
-        }
-        if ( line.substr(0, 8) == "maxdepth") {
-            int spacePos1 = line.find(" ");
-            int maxdepth = atoi (line.substr(spacePos1 + 1, line.length()).c_str());
-            // We'll ignore this parameter for now.
-            continue;
-        }
-        // Experiment with some string parsing
-        //stringstream ss (stringstream::out | stringstream::in);
-/*        ss.str(line);
-        string op;
-        ss >> op;
-        if ( op.compare("camera") == 0 ) {
-            double x, y, z;
-            ss >> x >> y >> z;
-            //LOOKFROM = Vect(x, y, z);
-            ss >> x >> y >> z;
-            //LOOKAT = Vect(x, y, z);
-            ss >> x >> y >> z;
-            //UP = Vect(x, y, z);
-            ss >> FOV;
-            continue;
-        }*/
-
-    }
-
-    sceneFile.close();
-
-
-    int dpi = 72;
+RGBType* raytrace (vector<Source*> light_sources, vector<Object*> scene_objects) {
     int n = WIDTH*HEIGHT;
-    RGBType *pixels = new RGBType[n];
-
-    int aadepth = 1; // Anti-aliasing depth
+    int aadepth = AADEPTH; // Anti-aliasing depth
     double aathreshold = 0.1;
     double aspectratio = (double) WIDTH / (double) HEIGHT;
     double ambientlight = 0.2;
     double accuracy = 0.000001;
 
-    Vect O (0,0,0);
-    Vect X (1,0,0);
-    Vect Y (0,1,0);
-    Vect Z (0,0,1);
-
-    Vect LOOKFROM (0, 0, 0);
-    Vect LOOKAT (0 , 0, -1);
-    Vect UP (0, 1, 0);
-
-    Vect diff_btw = LOOKFROM.add(LOOKAT.negative());
-
-    Vect camdir = diff_btw.negative().normalise();
-    Vect camright = UP.cross(camdir).normalise();
-    Vect camdown = camright.cross(camdir);
-    Camera scene_cam (LOOKFROM, camdir, camright, camdown);
-
-    Color white_light (1.0, 1.0, 1.0, 0.0);
-    Color green (0.5, 1.0, 0.5, 0.3);
-    Color yellow (1.0, 1.0, 0.0, 2);
-    Color red (1, 0, 0, 0.5);
-    Color cyan (0, 1, 1, 0.2);
-    Color black (0.0, 0.0, 0.0, 0.0);
-
-    Vect light_position (-7, 10, -10);
-    Light scene_light (light_position, white_light);
-    vector<Source*> light_sources;
-    light_sources.push_back(dynamic_cast<Source*>(&scene_light));
-
-    //scene objects
-    Sphere scene_sphere (O, 1, green);
-    Sphere scene_sphere_2 (Z.mult(5), 1, red);
-    Plane scene_plane (Y, -1, yellow);
-//     Triangle scene_triangle(Vect(3,0,0),
-//                             Vect(0,3,0),
-//                             Vect(0,0,3),
-//                             cyan);
-
-    vector<Object*> scene_objects;
-    scene_objects.push_back(dynamic_cast<Object*>(&scene_sphere));
-    scene_objects.push_back(dynamic_cast<Object*>(&scene_sphere_2));
-    scene_objects.push_back(dynamic_cast<Object*>(&scene_plane));
-//     scene_objects.push_back(dynamic_cast<Object*>(&scene_triangle));
 
 
+    RGBType *pixels = new RGBType[n];
     int thisone, aa_index;
     double xamnt, yamnt;
     // Anti-aliasing
@@ -461,9 +352,11 @@ int main (int argc, char *argv[]) {
                         }
                     }
 
-                    Vect cam_ray_origin = scene_cam.getCameraPosition();
-                    Vect cam_ray_direction = camdir.add(camright.mult(xamnt-0.5).add(camdown.mult(yamnt - 0.5))).normalise();
-
+                    Vect cam_ray_origin = SCENE_CAM.getCameraPosition();
+                    Vect cam_ray_direction = SCENE_CAM.getCameraDirection()
+                                                        .add(SCENE_CAM.getCameraRight().mult(xamnt-0.5)
+                                                        .add(SCENE_CAM.getCameraDown().mult(yamnt - 0.5)))
+                                                        .normalise();
                     Ray cam_ray (cam_ray_origin, cam_ray_direction);
 
                     // Calculate all object intersections with cam_ray
@@ -530,9 +423,132 @@ int main (int argc, char *argv[]) {
             pixels[thisone].b = avgBlue;
         }
     }
-    savebmp(OUTFILE.c_str(), WIDTH, HEIGHT, dpi, pixels);
+    return pixels;
+}
 
-    delete pixels, tempRed, tempGreen, tempBlue;
+void readSceneFile(int argc, char* argv[]) {
+    // Read input file with instructions
+    if (argc != 2) {
+        cout << "Please specify the scene file to read!" << endl;
+        exit(1);
+    }
+    // TODO: Check and validate filename and put a proper user message as help
+
+    ifstream sceneFile;
+    sceneFile.open(argv[1]);
+
+    if (!sceneFile.is_open()) {
+        cout << "Could not open file " << argv[1] << endl;
+        exit(1);
+    }
+
+    /* TODO: Implement a more effective parser as explained
+     * here http://inst.eecs.berkeley.edu/~cs184/fa09/resources/sec_TextParsing.pdf
+     */
+    string line;
+    while ( getline (sceneFile, line) ) {
+        if ( line[0] == '#' ) continue;
+        if ( line.substr(0, 4) == "size") {
+            int spacePos1 = line.find(" ");
+            int spacePos2 = line.find(" ", spacePos1 + 1);
+            WIDTH = atoi ( line.substr(spacePos1 + 1, spacePos2 - 1).c_str() );
+            HEIGHT = atoi ( line.substr(spacePos2 + 1, line.length()).c_str() );
+            continue;
+        }
+        if ( line.substr(0, 6) == "output") {
+            int spacePos1 = line.find(" ");
+            OUTFILE = line.substr(spacePos1 + 1, line.length());
+            continue;
+        }
+        if ( line.substr(0, 8) == "maxdepth") {
+            int spacePos1 = line.find(" ");
+            MAXDEPTH = atoi (line.substr(spacePos1 + 1, line.length()).c_str());
+            // We'll ignore this parameter for now.
+            continue;
+        }
+        if ( line.substr(0, 7) == "aadepth") {
+            int spacePos1 = line.find(" ");
+            AADEPTH = atoi (line.substr(spacePos1 + 1, line.length()).c_str());
+            continue;
+        }
+        // Experiment with some string parsing
+        stringstream ss (stringstream::out | stringstream::in);
+        ss.str(line);
+        string op;
+        ss >> op;
+        if ( op.compare("camera") == 0 ) {
+            double x, y, z;
+            ss >> x >> y >> z;
+            LOOKFROM = Vect(x, y, z);
+            ss >> x >> y >> z;
+            LOOKAT = Vect(x, y, z);
+            ss >> x >> y >> z;
+            UP = Vect(x, y, z);
+            ss >> FOV;
+            continue;
+        }
+
+    }
+
+    sceneFile.close();
+}
+
+
+int main (int argc, char *argv[]) {
+    cout << "reading input file..." << endl;
+    readSceneFile(argc, argv);
+
+    cout << "rendering..." << endl;
+
+    // Measure the time of execution of the rendering
+    clock_t t1, t2;
+    t1 = clock();
+
+    Vect O (0,0,0);
+    Vect X (1,0,0);
+    Vect Y (0,1,0);
+    Vect Z (0,0,1);
+
+    Vect camdir = LOOKFROM
+                    .negative()
+                    .add(LOOKAT)
+                    .normalise();
+    Vect camright = UP.cross(camdir).normalise();
+    Vect camdown = camright.cross(camdir);
+    SCENE_CAM = Camera(LOOKFROM, camdir, camright, camdown);
+
+    Color white_light (1.0, 1.0, 1.0, 0.0);
+    Color green (0.5, 1.0, 0.5, 0.3);
+    Color yellow (1.0, 1.0, 0.0, 2);
+    Color red (1, 0, 0, 0.5);
+    Color cyan (0, 1, 1, 0.2);
+    Color black (0.0, 0.0, 0.0, 0.0);
+
+    Vect light_position (-7, 10, -10);
+    Light scene_light (light_position, white_light);
+    vector<Source*> light_sources;
+    light_sources.push_back(dynamic_cast<Source*>(&scene_light));
+
+    //scene objects
+    Sphere scene_sphere (Z.mult(-10).add(X.mult(3)), 1, green);
+    Sphere scene_sphere_2 (Z.mult(-10), 1, red);
+    Plane scene_plane (Y, -1, yellow);
+     Triangle scene_triangle(Vect(6,0,-12),
+                             Vect(0,5,-12),
+                             Vect(0,-5,-12),
+                             cyan);
+
+    vector<Object*> scene_objects;
+    scene_objects.push_back(dynamic_cast<Object*>(&scene_sphere));
+    scene_objects.push_back(dynamic_cast<Object*>(&scene_sphere_2));
+    //scene_objects.push_back(dynamic_cast<Object*>(&scene_plane));
+    scene_objects.push_back(dynamic_cast<Object*>(&scene_triangle));
+
+
+    RGBType *pixels = raytrace(light_sources, scene_objects);
+    savebmp(OUTFILE.c_str(), WIDTH, HEIGHT, pixels);
+
+    delete pixels;
 
     // Calculate the time for rendering
     t2 = clock();

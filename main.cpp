@@ -21,13 +21,21 @@
 #include <Plane.h>
 #include <Triangle.h>
 
+#if defined __linux__ || defined __APPLE__
+// "Compiled for Linux
+#else
+// Windows doesn't define these values by default, Linux does
+#define M_PI 3.141592653589793
+#define INFINITY 1e8
+#endif
+
 using namespace std;
 
 // These are external variables to be used in the program
 int WIDTH = 640, HEIGHT = 480, DPI = 72;
 int MAXDEPTH = 5, AADEPTH = 1;
 Vect LOOKFROM, LOOKAT, UP;
-double FOV;
+double FOV = 30;
 string OUTFILE;
 Camera SCENE_CAM;
 
@@ -289,6 +297,8 @@ RGBType* raytrace (vector<Source*> light_sources, vector<Object*> scene_objects)
     double aspectratio = (double) WIDTH / (double) HEIGHT;
     double ambientlight = 0.2;
     double accuracy = 0.000001;
+    double angle = tan(M_PI * 0.5 * FOV / 180.);
+    cout << "angle " << angle << " and fov " << FOV << endl;
 
 
 
@@ -317,18 +327,18 @@ RGBType* raytrace (vector<Source*> light_sources, vector<Object*> scene_objects)
                         // No anti-aliasing
                         if (WIDTH > HEIGHT) {
                             // the image is wider than it is tall
-                            xamnt = ((x+0.5)/WIDTH)*aspectratio - ((WIDTH-HEIGHT)/ (double) HEIGHT);
-                            yamnt = ((HEIGHT - y) + 0.5)/HEIGHT;
+                            xamnt = (2*((x+0.5)/WIDTH)-1)*aspectratio*angle*2;
+                            yamnt = (1-2*((y + 0.5)/HEIGHT))*angle*2;
                         }
                         else if (HEIGHT > WIDTH) {
                             // the image is taller than it is wide
-                            xamnt = (x+0.5)/WIDTH;
-                            yamnt = (((HEIGHT - y) + 0.5)/HEIGHT)/aspectratio - ((HEIGHT - WIDTH)/(double) WIDTH)/2;
+                            xamnt = angle*(x+0.5)/WIDTH;
+                            yamnt = angle*((((HEIGHT - y) + 0.5)/HEIGHT)/aspectratio - ((HEIGHT - WIDTH)/(double) WIDTH)/2);
                         }
                         else {
                             // the image is square
-                            xamnt = (x+0.5)/WIDTH;
-                            yamnt = ((HEIGHT - y) + 0.5)/HEIGHT;
+                            xamnt = angle*(x+0.5)/WIDTH;
+                            yamnt = angle*((HEIGHT - y) + 0.5)/HEIGHT;
                         }
                     }
                     else
@@ -426,7 +436,8 @@ RGBType* raytrace (vector<Source*> light_sources, vector<Object*> scene_objects)
     return pixels;
 }
 
-void readSceneFile(int argc, char* argv[]) {
+void readSceneFile(int argc, char* argv[], vector<Source*> *light_sources,
+                   vector<Object*> *scene_objects, vector<Vect*> *vertices) {
     // Read input file with instructions
     if (argc != 2) {
         cout << "Please specify the scene file to read!" << endl;
@@ -487,7 +498,32 @@ void readSceneFile(int argc, char* argv[]) {
             ss >> FOV;
             continue;
         }
-
+        if ( op.compare("sphere") == 0 ) {
+            double x, y, z, radius;
+            ss >> x >> y >> z >> radius;
+            Color green (0.5, 1.0, 0.5, 0.3);
+            Sphere* sphere = new Sphere( Vect(x, y, z), radius, green);
+            scene_objects->push_back(dynamic_cast<Object*>(sphere));
+            continue;
+        }
+        if ( op.compare("vertex") == 0 ) {
+            double x, y, z;
+            ss >> x >> y >> z;
+            Vect* vect = new Vect(x, y, z);
+            vertices->push_back(vect);
+            continue;
+        }
+        if ( op.compare("tri") == 0 ) {
+            int v1, v2, v3;
+            ss >> v1 >> v2 >> v3;
+            Color cyan (0, 1, 1, 0.2);
+            Triangle* tri = new Triangle(*vertices->at(v1),
+                                         *vertices->at(v2),
+                                         *vertices->at(v3),
+                                         cyan);
+            scene_objects->push_back(dynamic_cast<Object*>(tri));
+            continue;
+        }
     }
 
     sceneFile.close();
@@ -496,7 +532,10 @@ void readSceneFile(int argc, char* argv[]) {
 
 int main (int argc, char *argv[]) {
     cout << "reading input file..." << endl;
-    readSceneFile(argc, argv);
+    vector<Source*> light_sources;
+    vector<Object*> scene_objects;
+    vector<Vect*> vertices;
+    readSceneFile(argc, argv, &light_sources, &scene_objects, &vertices);
 
     cout << "rendering..." << endl;
 
@@ -526,23 +565,23 @@ int main (int argc, char *argv[]) {
 
     Vect light_position (-7, 10, -10);
     Light scene_light (light_position, white_light);
-    vector<Source*> light_sources;
+
     light_sources.push_back(dynamic_cast<Source*>(&scene_light));
 
     //scene objects
     Sphere scene_sphere (Z.mult(-10).add(X.mult(3)), 1, green);
     Sphere scene_sphere_2 (Z.mult(-10), 1, red);
     Plane scene_plane (Y, -1, yellow);
-     Triangle scene_triangle(Vect(6,0,-12),
+    /*Triangle scene_triangle(Vect(6,0,-12),
                              Vect(0,5,-12),
                              Vect(0,-5,-12),
-                             cyan);
+                             cyan);*/
 
-    vector<Object*> scene_objects;
+
     scene_objects.push_back(dynamic_cast<Object*>(&scene_sphere));
     scene_objects.push_back(dynamic_cast<Object*>(&scene_sphere_2));
     //scene_objects.push_back(dynamic_cast<Object*>(&scene_plane));
-    scene_objects.push_back(dynamic_cast<Object*>(&scene_triangle));
+    //scene_objects.push_back(dynamic_cast<Object*>(&scene_triangle));
 
 
     RGBType *pixels = raytrace(light_sources, scene_objects);

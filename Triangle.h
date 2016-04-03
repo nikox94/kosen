@@ -2,9 +2,13 @@
 #define Triangle_H
 
 #include <math.h>
+#include <vector>
 #include <Object.h>
 #include <Vect.h>
 #include <Color.h>
+#include <Transform.h>
+
+using namespace std;
 
 class Triangle : public Object {
         Vect A, B, C;
@@ -16,11 +20,13 @@ class Triangle : public Object {
 
         Triangle (Vect, Vect, Vect, Color);
 
+        Triangle (Vect, Vect, Vect, vector<Transform*>, Color);
+
         // method functions
         Vect getAC() {
             return A.getVectBetweenTwoPoints(C);
         }
-        
+
         Vect getCA() {
 	    return getAC().negative();
 	}
@@ -98,17 +104,31 @@ class Triangle : public Object {
 };
 
 Triangle::Triangle () {
-        Triangle(Vect(1,0,0),
-                 Vect(0,1,0),
-                 Vect(0,0,1),
-                 Color(0.5, 0.5, 0.5, 0));
+    Triangle(Vect(1,0,0),
+             Vect(0,1,0),
+             Vect(0,0,1),
+             Color(0.5, 0.5, 0.5, 0));
 }
 
 Triangle::Triangle (Vect A, Vect B, Vect C, Color color) {
-        this->A = A;
-        this->B = B;
-        this->C = C;
-        this->color = color;
+    this->A = A;
+    this->B = B;
+    this->C = C;
+    this->color = color;
+}
+
+Triangle::Triangle (Vect A, Vect B, Vect C, vector<Transform*> transformations, Color color) {
+    while (!transformations.empty()){
+        Transform* transform = transformations.back();
+        A = transform->apply(A);
+        B = transform->apply(B);
+        C = transform->apply(C);
+        transformations.pop_back();
+    }
+    this->A = A;
+    this->B = B;
+    this->C = C;
+    this->color = color;
 }
 
 #endif

@@ -20,6 +20,10 @@
 #include <Sphere.h>
 #include <Plane.h>
 #include <Triangle.h>
+#include <Transform.h>
+#include <Scale.h>
+#include <Rotate.h>
+#include <Translate.h>
 
 #if defined __linux__ || defined __APPLE__
 // "Compiled for Linux
@@ -38,6 +42,7 @@ Vect LOOKFROM, LOOKAT, UP;
 double FOV = 30;
 string OUTFILE;
 Camera SCENE_CAM;
+static vector<Transform*> TRANSFORMS;
 
 struct RGBType {
     double r;
@@ -298,8 +303,6 @@ RGBType* raytrace (vector<Source*> light_sources, vector<Object*> scene_objects)
     double ambientlight = 0.2;
     double accuracy = 0.000001;
     double angle = tan(M_PI * 0.5 * FOV / 180.);
-    cout << "angle " << angle << " and fov " << FOV << endl;
-
 
 
     RGBType *pixels = new RGBType[n];
@@ -327,8 +330,8 @@ RGBType* raytrace (vector<Source*> light_sources, vector<Object*> scene_objects)
                         // No anti-aliasing
                         if (WIDTH > HEIGHT) {
                             // the image is wider than it is tall
-                            xamnt = (2*((x+0.5)/WIDTH)-1)*aspectratio*angle*2;
-                            yamnt = (1-2*((y + 0.5)/HEIGHT))*angle*2;
+                            xamnt = (2*((x+0.5)/WIDTH)-1)*aspectratio;
+                            yamnt = (1-2*((y + 0.5)/HEIGHT));
                         }
                         else if (HEIGHT > WIDTH) {
                             // the image is taller than it is wide
@@ -496,13 +499,20 @@ void readSceneFile(int argc, char* argv[], vector<Source*> *light_sources,
             ss >> x >> y >> z;
             UP = Vect(x, y, z);
             ss >> FOV;
+
+            Vect camdir = LOOKFROM.negative()
+                                  .add(LOOKAT)
+                                  .normalise();
+            Vect camright = UP.cross(camdir).normalise();
+            Vect camdown = camright.cross(camdir);
+            SCENE_CAM = Camera(LOOKFROM, camdir, camright, camdown);
             continue;
         }
         if ( op.compare("sphere") == 0 ) {
             double x, y, z, radius;
             ss >> x >> y >> z >> radius;
             Color green (0.5, 1.0, 0.5, 0.3);
-            Sphere* sphere = new Sphere( Vect(x, y, z), radius, green);
+            Sphere* sphere = new Sphere( Vect(x, y, z), radius, green, TRANSFORMS);
             scene_objects->push_back(dynamic_cast<Object*>(sphere));
             continue;
         }
@@ -520,8 +530,35 @@ void readSceneFile(int argc, char* argv[], vector<Source*> *light_sources,
             Triangle* tri = new Triangle(*vertices->at(v1),
                                          *vertices->at(v2),
                                          *vertices->at(v3),
+                                         TRANSFORMS,
                                          cyan);
             scene_objects->push_back(dynamic_cast<Object*>(tri));
+            continue;
+        }
+        if ( op.compare("popTransform") == 0 ) {
+            // TODO Thou shalt beware of memory leaks
+            TRANSFORMS.clear();
+            continue;
+        }
+        if ( op.compare("translate") == 0 ) {
+            double x, y, z;
+            ss >> x >> y >> z;
+            Translate* translation = new Translate(x, y, z);
+            TRANSFORMS.push_back(dynamic_cast<Transform*>(translation));
+            continue;
+        }
+        if ( op.compare("scale") == 0 ) {
+            double x, y, z;
+            ss >> x >> y >> z;
+            Scale* scale = new Scale(x, y, z);
+            TRANSFORMS.push_back(dynamic_cast<Transform*>(scale));
+            continue;
+        }
+        if ( op.compare("rotate") == 0 ) {
+            double x, y, z, angle;
+            ss >> x >> y >> z >> angle;
+            Rotate* rotation = new Rotate(x, y, z, angle);
+            TRANSFORMS.push_back(dynamic_cast<Transform*>(rotation));
             continue;
         }
     }
@@ -543,46 +580,12 @@ int main (int argc, char *argv[]) {
     clock_t t1, t2;
     t1 = clock();
 
-    Vect O (0,0,0);
-    Vect X (1,0,0);
-    Vect Y (0,1,0);
-    Vect Z (0,0,1);
-
-    Vect camdir = LOOKFROM
-                    .negative()
-                    .add(LOOKAT)
-                    .normalise();
-    Vect camright = UP.cross(camdir).normalise();
-    Vect camdown = camright.cross(camdir);
-    SCENE_CAM = Camera(LOOKFROM, camdir, camright, camdown);
-
     Color white_light (1.0, 1.0, 1.0, 0.0);
-    Color green (0.5, 1.0, 0.5, 0.3);
-    Color yellow (1.0, 1.0, 0.0, 2);
-    Color red (1, 0, 0, 0.5);
-    Color cyan (0, 1, 1, 0.2);
-    Color black (0.0, 0.0, 0.0, 0.0);
 
     Vect light_position (-7, 10, -10);
     Light scene_light (light_position, white_light);
 
     light_sources.push_back(dynamic_cast<Source*>(&scene_light));
-
-    //scene objects
-    Sphere scene_sphere (Z.mult(-10).add(X.mult(3)), 1, green);
-    Sphere scene_sphere_2 (Z.mult(-10), 1, red);
-    Plane scene_plane (Y, -1, yellow);
-    /*Triangle scene_triangle(Vect(6,0,-12),
-                             Vect(0,5,-12),
-                             Vect(0,-5,-12),
-                             cyan);*/
-
-
-    scene_objects.push_back(dynamic_cast<Object*>(&scene_sphere));
-    scene_objects.push_back(dynamic_cast<Object*>(&scene_sphere_2));
-    //scene_objects.push_back(dynamic_cast<Object*>(&scene_plane));
-    //scene_objects.push_back(dynamic_cast<Object*>(&scene_triangle));
-
 
     RGBType *pixels = raytrace(light_sources, scene_objects);
     savebmp(OUTFILE.c_str(), WIDTH, HEIGHT, pixels);

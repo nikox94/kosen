@@ -24,7 +24,7 @@ This should generate an executable called `kosen` that you can run with a scene 
 kosen scene5.test
 ```
 A bash file called `run.sh` should soon be written that will automatically run kosen
-for all the sample scenefiles provided in the project subdirectory `sample scene files`.
+for all the sample scenefiles provided in the project subdirectory `Sample scene files`.
 
 ##Scene file commands
 

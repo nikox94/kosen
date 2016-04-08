@@ -1,0 +1,36 @@
+#Thousand Spheres
+size 640 480
+camera 0 0 0 0 0 -1 0 1 0 45
+output scene5_45.png
+
+maxdepth 5
+aadepth 1
+
+point 0 20 -40 1 1 1
+directional 0.5 0.5 -0.5 0 0.3 0
+ambient 0.01 0.01 0.01
+specular 0.4 0.4 0.4
+diffuse 0.4 0.4 0.4
+shininess 40
+emission 0 0 0
+
+sphere 0 2 -10 1
+sphere 3 -2 -10 1
+
+
+vertex 10 0 -12
+vertex 0 5 -12
+vertex 0 -5 -12
+
+pushTransform
+
+rotate 0 0 1 45
+translate 10 0 0
+scale 2 1 1
+tri 0 1 2
+popTransform
+
+pushTransform
+translate 0 1 0
+sphere 2 -2 -11 0.5
+popTransform

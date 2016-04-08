@@ -5,6 +5,9 @@
 #include "Color.h"
 #include "Source.h"
 
+/**
+ * The class for a point light-source.
+ */
 class Light : public Source{
 	Vect position;
 	Color color;
@@ -23,7 +26,7 @@ class Light : public Source{
 
 Light::Light () {
 	position = Vect(0,0,0);
-	color = Color(1,1,1, 0);
+	color = Color(1,1,1,0);
 }
 
 Light::Light (Vect p, Color c) {

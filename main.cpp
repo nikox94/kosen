@@ -20,8 +20,29 @@
 #include <Sphere.h>
 #include <Plane.h>
 #include <Triangle.h>
+#include <Transform.h>
+#include <Scale.h>
+#include <Rotate.h>
+#include <Translate.h>
+
+#if defined __linux__ || defined __APPLE__
+// "Compiled for Linux
+#else
+// Windows doesn't define these values by default, Linux does
+#define M_PI 3.141592653589793
+#define INFINITY 1e8
+#endif
 
 using namespace std;
+
+// These are external variables to be used in the program
+int WIDTH = 640, HEIGHT = 480, DPI = 72;
+int MAXDEPTH = 5, AADEPTH = 1;
+Vect LOOKFROM, LOOKAT, UP;
+double FOV = 30;
+string OUTFILE;
+Camera SCENE_CAM;
+static vector<Transform*> TRANSFORMS;
 
 struct RGBType {
     double r;
@@ -29,7 +50,7 @@ struct RGBType {
     double b;
 };
 
-void savebmp (const char *filename, int w, int h, int dpi, RGBType *data) {
+void savebmp (const char *filename, int w, int h, RGBType *data) {
     FILE *f;
     int k = w*h;
     int s = 4*k;
@@ -38,7 +59,7 @@ void savebmp (const char *filename, int w, int h, int dpi, RGBType *data) {
     double factor = 39.375;
     int m = static_cast<int>(factor);
 
-    int ppm = dpi*m;
+    int ppm = DPI*m;
 
     unsigned char bmpfileheader[14] = {'B', 'M', 0, 0, 0, 0,  0, 0, 0, 0,  54, 0, 0, 0};
     unsigned char bmpinfoheader[40] = {40,0,0,0, 0,0,0,0, 0,0,0,0, 1,0,24,0};
@@ -93,6 +114,10 @@ void savebmp (const char *filename, int w, int h, int dpi, RGBType *data) {
     fclose(f);
 }
 
+/**
+ * Gets an array of all objects that a ray intersects and finds the winning one's index.
+ *
+ */
 int winningObjectIndex(vector<double> object_intersections) {
     // return the index of the winning intersections
     int index_of_minimum_value;
@@ -270,68 +295,17 @@ Color getColorAt(Vect intersection_position, Vect intersecting_ray_direction, ve
     return final_color.clip();
 }
 
-int main (int argc, char *argv[]) {
-    cout << "rendering..." << endl;
-
-    // Measure the time of execution of the rendering
-    clock_t t1, t2;
-    t1 = clock();
-
-    int dpi = 72;
-    int width = 640;
-    int height = 480;
-    int n = width*height;
-    RGBType *pixels = new RGBType[n];
-
-    int aadepth = 1; // Anti-aliasing depth
+RGBType* raytrace (vector<Source*> light_sources, vector<Object*> scene_objects) {
+    int n = WIDTH*HEIGHT;
+    int aadepth = AADEPTH; // Anti-aliasing depth
     double aathreshold = 0.1;
-    double aspectratio = (double) width / (double) height;
+    double aspectratio = (double) WIDTH / (double) HEIGHT;
     double ambientlight = 0.2;
     double accuracy = 0.000001;
-
-    Vect O (0,0,0);
-    Vect X (1,0,0);
-    Vect Y (0,1,0);
-    Vect Z (0,0,1);
-
-    Vect campos (3, 1.5, -4);
-
-    Vect look_at (0, 0, 0);
-    Vect diff_btw = campos.add(look_at.negative());
-
-    Vect camdir = diff_btw.negative().normalise();
-    Vect camright = Y.cross(camdir).normalise();
-    Vect camdown = camright.cross(camdir);
-    Camera scene_cam (campos, camdir, camright, camdown);
-
-    Color white_light (1.0, 1.0, 1.0, 0.0);
-    Color green (0.5, 1.0, 0.5, 0.3);
-    Color yellow (1.0, 1.0, 0.0, 2);
-    Color red (1, 0, 0, 0.5);
-    Color cyan (0, 1, 1, 0.2);
-    Color black (0.0, 0.0, 0.0, 0.0);
-
-    Vect light_position (-7, 10, -10);
-    Light scene_light (light_position, white_light);
-    vector<Source*> light_sources;
-    light_sources.push_back(dynamic_cast<Source*>(&scene_light));
-
-    //scene objects
-    Sphere scene_sphere (O, 1, green);
-    Sphere scene_sphere_2 (Z.mult(5), 1, red);
-    Plane scene_plane (Y, -1, yellow);
-//     Triangle scene_triangle(Vect(3,0,0),
-//                             Vect(0,3,0),
-//                             Vect(0,0,3),
-//                             cyan);
-
-    vector<Object*> scene_objects;
-    scene_objects.push_back(dynamic_cast<Object*>(&scene_sphere));
-    scene_objects.push_back(dynamic_cast<Object*>(&scene_sphere_2));
-    scene_objects.push_back(dynamic_cast<Object*>(&scene_plane));
-//     scene_objects.push_back(dynamic_cast<Object*>(&scene_triangle));
+    double angle = tan(M_PI * 0.5 * FOV / 180.);
 
 
+    RGBType *pixels = new RGBType[n];
     int thisone, aa_index;
     double xamnt, yamnt;
     // Anti-aliasing
@@ -341,9 +315,9 @@ int main (int argc, char *argv[]) {
     double tempBlue[aadepth*aadepth];
 
     // pixel main loop
-    for (int x = 0; x < width; x++) {
-        for (int y = 0; y < height; y++) {
-            thisone = y*width + x;
+    for (int x = 0; x < WIDTH; x++) {
+        for (int y = 0; y < HEIGHT; y++) {
+            thisone = y*WIDTH + x;
 
             // Anti-aliasing loop
             for (int aax = 0; aax < aadepth; aax++) {
@@ -354,46 +328,48 @@ int main (int argc, char *argv[]) {
                     // create the ray from the camera to this pixel
                     if (aadepth == 1) {
                         // No anti-aliasing
-                        if (width > height) {
+                        if (WIDTH > HEIGHT) {
                             // the image is wider than it is tall
-                            xamnt = ((x+0.5)/width)*aspectratio - ((width-height)/ (double) height);
-                            yamnt = ((height - y) + 0.5)/height;
+                            xamnt = (((x + 0.5)/WIDTH)*aspectratio - ((WIDTH-HEIGHT)/ (double) HEIGHT));
+                            yamnt = ((HEIGHT - y) + 0.5)/HEIGHT;
                         }
-                        else if (height > width) {
+                        else if (HEIGHT > WIDTH) {
                             // the image is taller than it is wide
-                            xamnt = (x+0.5)/width;
-                            yamnt = (((height - y) + 0.5)/height)/aspectratio - ((height - width)/(double) width)/2;
+                            xamnt = (x+0.5)/WIDTH;
+                            yamnt = ((((HEIGHT - y) + 0.5)/HEIGHT)/aspectratio - ((HEIGHT - WIDTH)/(double) WIDTH)/2);
                         }
                         else {
                             // the image is square
-                            xamnt = (x+0.5)/width;
-                            yamnt = ((height - y) + 0.5)/height;
+                            xamnt = (x+0.5)/WIDTH;
+                            yamnt = ((HEIGHT - y) + 0.5)/HEIGHT;
                         }
                     }
                     else
                     {
                         double offset = (double) aax/((double) aadepth - 1);
                         // anti-aliasing
-                        if (width > height) {
+                        if (WIDTH > HEIGHT) {
                             // the image is wider than it is tall
-                            xamnt = (((x + offset)/width)*aspectratio - ((width-height)/ (double) height));
-                            yamnt = ((height - y) + offset)/height;
+                            xamnt = (((x + offset)/WIDTH)*aspectratio - ((WIDTH-HEIGHT)/ (double) HEIGHT));
+                            yamnt = ((HEIGHT - y) + offset)/HEIGHT;
                         }
-                        else if (height > width) {
+                        else if (HEIGHT > WIDTH) {
                             // the image is taller than it is wide
-                            xamnt = (x+offset)/width;
-                            yamnt = (((height - y) + offset)/height)/aspectratio - ((height - width)/(double) width)/2;
+                            xamnt = (x+offset)/WIDTH;
+                            yamnt = (((HEIGHT - y) + offset)/HEIGHT)/aspectratio - ((HEIGHT - WIDTH)/(double) WIDTH)/2;
                         }
                         else {
                             // the image is square
-                            xamnt = (x+offset)/width;
-                            yamnt = ((height - y) + offset)/height;
+                            xamnt = (x+offset)/WIDTH;
+                            yamnt = ((HEIGHT - y) + offset)/HEIGHT;
                         }
                     }
 
-                    Vect cam_ray_origin = scene_cam.getCameraPosition();
-                    Vect cam_ray_direction = camdir.add(camright.mult(xamnt-0.5).add(camdown.mult(yamnt - 0.5))).normalise();
-
+                    Vect cam_ray_origin = SCENE_CAM.getCameraPosition();
+                    Vect cam_ray_direction = SCENE_CAM.getCameraDirection()
+                                                        .add(SCENE_CAM.getCameraRight().mult(xamnt-0.5)
+                                                        .add(SCENE_CAM.getCameraDown().mult(yamnt - 0.5)))
+                                                        .normalise();
                     Ray cam_ray (cam_ray_origin, cam_ray_direction);
 
                     // Calculate all object intersections with cam_ray
@@ -460,9 +436,161 @@ int main (int argc, char *argv[]) {
             pixels[thisone].b = avgBlue;
         }
     }
-    savebmp("scene.bmp", width, height, dpi, pixels);
+    return pixels;
+}
 
-    delete pixels, tempRed, tempGreen, tempBlue;
+void readSceneFile(int argc, char* argv[], vector<Source*> *light_sources,
+                   vector<Object*> *scene_objects, vector<Vect*> *vertices) {
+    // Read input file with instructions
+    if (argc != 2) {
+        cout << "Please specify the scene file to read!" << endl;
+        exit(1);
+    }
+    // TODO: Check and validate filename and put a proper user message as help
+
+    ifstream sceneFile;
+    sceneFile.open(argv[1]);
+
+    if (!sceneFile.is_open()) {
+        cout << "Could not open file " << argv[1] << endl;
+        exit(1);
+    }
+
+    /* TODO: Implement a more effective parser as explained
+     * here http://inst.eecs.berkeley.edu/~cs184/fa09/resources/sec_TextParsing.pdf
+     */
+    string line;
+    while ( getline (sceneFile, line) ) {
+        if ( line[0] == '#' ) continue;
+        if ( line.substr(0, 4) == "size") {
+            int spacePos1 = line.find(" ");
+            int spacePos2 = line.find(" ", spacePos1 + 1);
+            WIDTH = atoi ( line.substr(spacePos1 + 1, spacePos2 - 1).c_str() );
+            HEIGHT = atoi ( line.substr(spacePos2 + 1, line.length()).c_str() );
+            continue;
+        }
+        if ( line.substr(0, 6) == "output") {
+            int spacePos1 = line.find(" ");
+            OUTFILE = line.substr(spacePos1 + 1, line.length());
+            continue;
+        }
+        if ( line.substr(0, 8) == "maxdepth") {
+            int spacePos1 = line.find(" ");
+            MAXDEPTH = atoi (line.substr(spacePos1 + 1, line.length()).c_str());
+            // We'll ignore this parameter for now.
+            continue;
+        }
+        if ( line.substr(0, 7) == "aadepth") {
+            int spacePos1 = line.find(" ");
+            AADEPTH = atoi (line.substr(spacePos1 + 1, line.length()).c_str());
+            continue;
+        }
+        // Experiment with some string parsing
+        stringstream ss (stringstream::out | stringstream::in);
+        ss.str(line);
+        string op;
+        ss >> op;
+        if ( op.compare("camera") == 0 ) {
+            double x, y, z;
+            ss >> x >> y >> z;
+            LOOKFROM = Vect(x, y, z);
+            ss >> x >> y >> z;
+            LOOKAT = Vect(x, y, z);
+            ss >> x >> y >> z;
+            UP = Vect(x, y, z);
+            ss >> FOV;
+
+            Vect camdir = LOOKFROM.negative()
+                                  .add(LOOKAT)
+                                  .normalise();
+            Vect camright = UP.cross(camdir).normalise();
+            Vect camdown = camright.cross(camdir);
+            SCENE_CAM = Camera(LOOKFROM, camdir, camright, camdown);
+            continue;
+        }
+        if ( op.compare("sphere") == 0 ) {
+            double x, y, z, radius;
+            ss >> x >> y >> z >> radius;
+            Color green (0.5, 1.0, 0.5, 0.3);
+            Sphere* sphere = new Sphere( Vect(x, y, z), radius, green, TRANSFORMS);
+            scene_objects->push_back(dynamic_cast<Object*>(sphere));
+            continue;
+        }
+        if ( op.compare("vertex") == 0 ) {
+            double x, y, z;
+            ss >> x >> y >> z;
+            Vect* vect = new Vect(x, y, z);
+            vertices->push_back(vect);
+            continue;
+        }
+        if ( op.compare("tri") == 0 ) {
+            int v1, v2, v3;
+            ss >> v1 >> v2 >> v3;
+            Color cyan (0, 1, 1, 0.2);
+            Triangle* tri = new Triangle(*vertices->at(v1),
+                                         *vertices->at(v2),
+                                         *vertices->at(v3),
+                                         TRANSFORMS,
+                                         cyan);
+            scene_objects->push_back(dynamic_cast<Object*>(tri));
+            continue;
+        }
+        if ( op.compare("popTransform") == 0 ) {
+            // TODO Thou shalt beware of memory leaks
+            TRANSFORMS.clear();
+            continue;
+        }
+        if ( op.compare("translate") == 0 ) {
+            double x, y, z;
+            ss >> x >> y >> z;
+            Translate* translation = new Translate(x, y, z);
+            TRANSFORMS.push_back(dynamic_cast<Transform*>(translation));
+            continue;
+        }
+        if ( op.compare("scale") == 0 ) {
+            double x, y, z;
+            ss >> x >> y >> z;
+            Scale* scale = new Scale(x, y, z);
+            TRANSFORMS.push_back(dynamic_cast<Transform*>(scale));
+            continue;
+        }
+        if ( op.compare("rotate") == 0 ) {
+            double x, y, z, angle;
+            ss >> x >> y >> z >> angle;
+            Rotate* rotation = new Rotate(x, y, z, angle);
+            TRANSFORMS.push_back(dynamic_cast<Transform*>(rotation));
+            continue;
+        }
+    }
+
+    sceneFile.close();
+}
+
+
+int main (int argc, char *argv[]) {
+    cout << "reading input file..." << endl;
+    vector<Source*> light_sources;
+    vector<Object*> scene_objects;
+    vector<Vect*> vertices;
+    readSceneFile(argc, argv, &light_sources, &scene_objects, &vertices);
+
+    cout << "rendering..." << endl;
+
+    // Measure the time of execution of the rendering
+    clock_t t1, t2;
+    t1 = clock();
+
+    Color white_light (1.0, 1.0, 1.0, 0.0);
+
+    Vect light_position (-7, 10, -10);
+    Light scene_light (light_position, white_light);
+
+    light_sources.push_back(dynamic_cast<Source*>(&scene_light));
+
+    RGBType *pixels = raytrace(light_sources, scene_objects);
+    savebmp(OUTFILE.c_str(), WIDTH, HEIGHT, pixels);
+
+    delete pixels;
 
     // Calculate the time for rendering
     t2 = clock();

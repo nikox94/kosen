@@ -5,17 +5,22 @@
 #include <Object.h>
 #include <Vect.h>
 #include <Color.h>
+#include <vector>
+#include <Transform.h>
 
 class Sphere : public Object {
         Vect center;
         double radius;
         Color color;
+        std::vector<Transform*> transforms;
 
         public:
 
         Sphere ();
 
         Sphere (Vect, double, Color);
+
+        Sphere (Vect, double, Color, std::vector<Transform*>);
 
         // method functions
         Vect getCenter () { return center; }
@@ -29,17 +34,25 @@ class Sphere : public Object {
         }
 
         virtual double findIntersection(Ray ray) {
+            // Inverse transform rays before intersection test
             Vect ray_origin = ray.getRayOrigin();
+            Vect ray_direction = ray.getRayDirection();
+            Vect sphere_center = center;
+            for (int i = transforms.size()-1 ; i >= 0 ; i--) {
+                //Transform* transform = transforms[i];
+                //ray_origin = transform->inverse()->apply(ray_origin);
+                //ray_direction = transform->inverse()->apply(ray_direction);
+                //center = transform->apply(center);
+            }
+
             double ray_origin_x = ray_origin.getVectX();
             double ray_origin_y = ray_origin.getVectY();
             double ray_origin_z = ray_origin.getVectZ();
 
-            Vect ray_direction = ray.getRayDirection();
             double ray_direction_x = ray_direction.getVectX();
             double ray_direction_y = ray_direction.getVectY();
             double ray_direction_z = ray_direction.getVectZ();
 
-            Vect sphere_center = center;
             double sphere_center_x = sphere_center.getVectX();
             double sphere_center_y = sphere_center.getVectY();
             double sphere_center_z = sphere_center.getVectZ();
@@ -89,6 +102,19 @@ Sphere::Sphere (Vect center, double radius, Color color) {
         this->center = center;
         this->radius = radius;
         this->color = color;
+}
+
+Sphere::Sphere (Vect center, double radius, Color color, std::vector<Transform*> transforms) {
+    for (int i = transforms.size()-1 ; i >= 0 ; i--) {
+                Transform* transform = transforms[i];
+                //ray_origin = transform->inverse()->apply(ray_origin);
+                //ray_direction = transform->inverse()->apply(ray_direction);
+                center = transform->apply(center);
+            }
+        this->center = center;
+        this->radius = radius;
+        this->color = color;
+        this->transforms = transforms;
 }
 
 #endif

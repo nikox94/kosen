@@ -5,6 +5,9 @@
 #include <Vect.h>
 #include <Color.h>
 
+/**
+ * Virtual class for any type of light source.
+ */
 class Source {
         public:
 

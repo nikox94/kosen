@@ -330,18 +330,18 @@ RGBType* raytrace (vector<Source*> light_sources, vector<Object*> scene_objects)
                         // No anti-aliasing
                         if (WIDTH > HEIGHT) {
                             // the image is wider than it is tall
-                            xamnt = (2*((x+0.5)/WIDTH)-1)*aspectratio;
-                            yamnt = (1-2*((y + 0.5)/HEIGHT));
+                            xamnt = (((x + 0.5)/WIDTH)*aspectratio - ((WIDTH-HEIGHT)/ (double) HEIGHT));
+                            yamnt = ((HEIGHT - y) + 0.5)/HEIGHT;
                         }
                         else if (HEIGHT > WIDTH) {
                             // the image is taller than it is wide
-                            xamnt = angle*(x+0.5)/WIDTH;
-                            yamnt = angle*((((HEIGHT - y) + 0.5)/HEIGHT)/aspectratio - ((HEIGHT - WIDTH)/(double) WIDTH)/2);
+                            xamnt = (x+0.5)/WIDTH;
+                            yamnt = ((((HEIGHT - y) + 0.5)/HEIGHT)/aspectratio - ((HEIGHT - WIDTH)/(double) WIDTH)/2);
                         }
                         else {
                             // the image is square
-                            xamnt = angle*(x+0.5)/WIDTH;
-                            yamnt = angle*((HEIGHT - y) + 0.5)/HEIGHT;
+                            xamnt = (x+0.5)/WIDTH;
+                            yamnt = ((HEIGHT - y) + 0.5)/HEIGHT;
                         }
                     }
                     else

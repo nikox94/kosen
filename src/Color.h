@@ -1,10 +1,21 @@
 #ifndef COLOR_H
 #define COLOR_H
 
+#include <RGBType.h>
+
 class Color {
 	// The RGB will be values between 0.0 and 1.0
 	// The special number is... special
+        // This is the diffuse colour of an object
 	double red, green, blue, special;
+        // Specular colour
+        RGBType specular;
+        // Emission colour
+        RGBType emission;
+        // Ambient Light
+        RGBType ambient;
+        // Shine
+        double shine;
 
 	public:
 
@@ -17,11 +28,19 @@ class Color {
 	double getGreen() { return green; }
 	double getBlue() { return blue; }
 	double getSpecial() { return special; }
+	double getShine() {return shine; }
+	RGBType getSpecular() { return specular; }
+	RGBType getEmission() { return emission; }
+	RGBType getAmbient() { return ambient; }
 
 	double setRed(double redValue) { red = redValue; }
 	double setGreen(double greenValue) { green = greenValue; }
 	double setBlue(double blueValue) { blue = blueValue; }
 	double setSpecial(double specialValue) { special = specialValue; }
+	double setShine(double shineValue) { shine = shineValue; }
+	RGBType setSpecular(RGBType specularColor) { specular = specularColor; }
+        RGBType setEmission(RGBType emissionColor) { emission = emissionColor; }
+        RGBType setAmbient(RGBType ambientColor) { ambient = ambientColor; }
 
 	double brightness() {
 		return (red + green + blue)/3;
@@ -72,6 +91,10 @@ Color::Color (double r, double g, double b, double s) {
 	green = g;
 	blue = b;
 	special = s;
+        // Default value for the ambient light
+        ambient.r = 0.2;
+        ambient.g = 0.2;
+        ambient.b = 0.2;
 }
 
 #endif

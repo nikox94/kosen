@@ -38,7 +38,8 @@ For examples and clarifications, see the example input files. The lines have the
 ###General
 
 * `size width height`: The size command must be the first command of the file, which controls the image size.
-* `maxdepth depth`: The maximum depth (number of bounces) for a ray (default should be 5).
+* `maxdepth depth`: The maximum depth (number of bounces) for a ray (default is 5).
+* `aadepth depth`: The number of rays anti-aliasing will cast per pixel. (default is 1)
 * `output filename`: The output file to which the image should be written. You can either require this to be specified in the input, or you can use a suitable default like stdout or raytrace.bmp (The final files should be .bmp).
 
 ###Camera
@@ -46,7 +47,7 @@ For examples and clarifications, see the example input files. The lines have the
 The camera is specified as follows. In general, there should be only one camera specification in the input file;
 what happens if there is more than one specification is left undefined.
 
-* `camera lookfromx lookfromy lookfromz lookatx lookaty lookatz upx upy upz` specifies the camera in the standard way.
+* `camera lookfromx lookfromy lookfromz lookatx lookaty lookatz upx upy upz fov` specifies the camera in the standard way.
 
 ###Graphics
 
@@ -54,9 +55,8 @@ We only have spheres, triangles and planes so far.
 
 
 * `sphere x y z radius` Defines a sphere with a given position and radius.
-* `maxverts number` Defines a maximum number of vertices for later triangle specifications. It must be set before vertices are defined. (Your program may not need this; it is simply a convenience to allocate arrays accordingly)
 * `vertex x y z` Defines a vertex at the given location. The vertex is put into a pile, starting to be numbered at 0.
-* `tri v1 v2 v3` Create a triangle out of the vertices involved (which have previously been specified with the vertex command). The vertices are assumed to be specified in counter-clockwise order. Your code should internally compute a face normal for this triangle.
+* `tri v1 v2 v3` Create a triangle out of the vertices involved (which have previously been specified with the vertex command). The vertices are assumed to be specified in counter-clockwise order. The code should internally compute a face normal for the triangle.
 * `plane normalx normaly normalz distance` Defines a plane using the normal to the plane and its distance from the origin.
 
 ###Transformations

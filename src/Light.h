@@ -5,12 +5,17 @@
 #include "Color.h"
 #include "Source.h"
 
+struct AttenuationType {
+    double constant, linear, quadratic;
+};
+
 /**
  * The class for a point light-source.
  */
 class Light : public Source{
 	Vect position;
 	Color color;
+        AttenuationType attenuation;
 
 	public:
 
@@ -18,20 +23,31 @@ class Light : public Source{
 
 	Light (Vect, Color);
 
+        AttenuationType getAttenuation() { return attenuation; }
+
+        AttenuationType setAttenuation(AttenuationType attenuationValue) {
+            attenuation = attenuationValue;
+        }
+        AttenuationType setAttenuation(double c, double l, double q) {
+            attenuation.constant = c;
+            attenuation.linear = l;
+            attenuation.quadratic = q;
+        }
+
 	// method functions
-	virtual Vect getPosition () { return position; }
-	virtual Color getColor () { return color; }
+	virtual Vect getPosition() { return position; }
+	virtual Color getColor() { return color; }
 
 };
 
 Light::Light () {
-	position = Vect(0,0,0);
-	color = Color(1,1,1,0);
+    Light(Vect(0, 0, 0), Color(1, 1, 1, 0));
 }
 
 Light::Light (Vect p, Color c) {
 	position = p;
 	color = c;
+        attenuation.constant = 1;
 }
 
 #endif

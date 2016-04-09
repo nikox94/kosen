@@ -11,6 +11,7 @@
 #include <time.h>
 
 #include <Object.h>
+#include <RGBType.h>
 #include <Source.h>
 #include <Vect.h>
 #include <Ray.h>
@@ -36,19 +37,22 @@
 using namespace std;
 
 // These are external variables to be used in the program
-int WIDTH = 640, HEIGHT = 480, DPI = 72;
-int MAXDEPTH = 5, AADEPTH = 1;
-Vect LOOKFROM, LOOKAT, UP;
-double FOV = 30;
-string OUTFILE;
-Camera SCENE_CAM;
+static int WIDTH = 640, HEIGHT = 480, DPI = 72;
+static int MAXDEPTH = 5, AADEPTH = 1;
+// Vectors that define the camera
+static Vect LOOKFROM, LOOKAT, UP;
+// The field of view
+static double FOV = 30;
+// Outfile's name
+static string OUTFILE;
+// The camera object
+static Camera SCENE_CAM;
+// Transformations
 static vector<Transform*> TRANSFORMS;
+// This tracks the currently active colour within the inputfile
+static Color CURRENT_COLOR;
+static AttenuationType CURRENT_ATTENUATION;
 
-struct RGBType {
-    double r;
-    double g;
-    double b;
-};
 
 void savebmp (const char *filename, int w, int h, RGBType *data) {
     FILE *f;
@@ -446,7 +450,6 @@ void readSceneFile(int argc, char* argv[], vector<Source*> *light_sources,
         cout << "Please specify the scene file to read!" << endl;
         exit(1);
     }
-    // TODO: Check and validate filename and put a proper user message as help
 
     ifstream sceneFile;
     sceneFile.open(argv[1]);
@@ -456,40 +459,32 @@ void readSceneFile(int argc, char* argv[], vector<Source*> *light_sources,
         exit(1);
     }
 
-    /* TODO: Implement a more effective parser as explained
-     * here http://inst.eecs.berkeley.edu/~cs184/fa09/resources/sec_TextParsing.pdf
-     */
     string line;
     while ( getline (sceneFile, line) ) {
-        if ( line[0] == '#' ) continue;
-        if ( line.substr(0, 4) == "size") {
-            int spacePos1 = line.find(" ");
-            int spacePos2 = line.find(" ", spacePos1 + 1);
-            WIDTH = atoi ( line.substr(spacePos1 + 1, spacePos2 - 1).c_str() );
-            HEIGHT = atoi ( line.substr(spacePos2 + 1, line.length()).c_str() );
-            continue;
-        }
-        if ( line.substr(0, 6) == "output") {
-            int spacePos1 = line.find(" ");
-            OUTFILE = line.substr(spacePos1 + 1, line.length());
-            continue;
-        }
-        if ( line.substr(0, 8) == "maxdepth") {
-            int spacePos1 = line.find(" ");
-            MAXDEPTH = atoi (line.substr(spacePos1 + 1, line.length()).c_str());
-            // We'll ignore this parameter for now.
-            continue;
-        }
-        if ( line.substr(0, 7) == "aadepth") {
-            int spacePos1 = line.find(" ");
-            AADEPTH = atoi (line.substr(spacePos1 + 1, line.length()).c_str());
-            continue;
-        }
-        // Experiment with some string parsing
+        if ( line[0] == '#' || line[0] == '\0') continue;
+
         stringstream ss (stringstream::out | stringstream::in);
         ss.str(line);
         string op;
         ss >> op;
+
+        // GENERAL SCENE
+        if ( op.compare("size") == 0) {
+            ss >> WIDTH >> HEIGHT;
+            continue;
+        }
+        if ( op.compare("output") == 0) {
+            ss >> OUTFILE;
+            continue;
+        }
+        if ( op.compare("maxdepth") == 0) {
+            ss >> MAXDEPTH;
+            continue;
+        }
+        if ( op.compare("aadepth") == 0) {
+            ss >> AADEPTH;
+            continue;
+        }
         if ( op.compare("camera") == 0 ) {
             double x, y, z;
             ss >> x >> y >> z;
@@ -508,11 +503,51 @@ void readSceneFile(int argc, char* argv[], vector<Source*> *light_sources,
             SCENE_CAM = Camera(LOOKFROM, camdir, camright, camdown);
             continue;
         }
+        // END GENERAL SCENE
+
+        // LIGHTS
+        if ( op.compare("point") == 0 ) {
+            double x, y, z, r, g, b;
+            ss >> x >> y >> z >> r >> g >> b;
+            Color color = Color(r, g, b, 0.0);
+            Vect position = Vect(x, y, z);
+            Light* light = new Light(position, color);
+            light->setAttenuation(CURRENT_ATTENUATION);
+            light_sources->push_back(dynamic_cast<Source*>(light));
+            continue;
+        }
+        if ( op.compare("directional") == 0 ) {
+            // For now directional lights are simply point lights with constant attenuation.
+            double x, y, z, r, g, b;
+            ss >> x >> y >> z >> r >> g >> b;
+            Color color = Color(r, g, b, 0.0);
+            Vect position = Vect(x, y, z);
+            Light* light = new Light(position, color);
+            light_sources->push_back(dynamic_cast<Source*>(light));
+            continue;
+        }
+        if ( op.compare("attenuation") == 0 ) {
+            ss >> CURRENT_ATTENUATION.constant
+               >> CURRENT_ATTENUATION.linear
+               >> CURRENT_ATTENUATION.quadratic;
+            continue;
+        }
+        if ( op.compare("ambient") == 0 ) {
+            RGBType ambient;
+            ss >> ambient.r >> ambient.g >> ambient.b;
+            CURRENT_COLOR.setAmbient(ambient);
+            continue;
+        }
+        // END LIGHTS
+
+        // SCENE OBJECTS
         if ( op.compare("sphere") == 0 ) {
             double x, y, z, radius;
             ss >> x >> y >> z >> radius;
-            Color green (0.5, 1.0, 0.5, 0.3);
-            Sphere* sphere = new Sphere( Vect(x, y, z), radius, green, TRANSFORMS);
+            Sphere* sphere = new Sphere( Vect(x, y, z),
+                                         radius,
+                                         CURRENT_COLOR,
+                                         TRANSFORMS);
             scene_objects->push_back(dynamic_cast<Object*>(sphere));
             continue;
         }
@@ -526,15 +561,53 @@ void readSceneFile(int argc, char* argv[], vector<Source*> *light_sources,
         if ( op.compare("tri") == 0 ) {
             int v1, v2, v3;
             ss >> v1 >> v2 >> v3;
-            Color cyan (0, 1, 1, 0.2);
             Triangle* tri = new Triangle(*vertices->at(v1),
                                          *vertices->at(v2),
                                          *vertices->at(v3),
                                          TRANSFORMS,
-                                         cyan);
+                                         CURRENT_COLOR);
             scene_objects->push_back(dynamic_cast<Object*>(tri));
             continue;
         }
+        if ( op.compare("plane") == 0 ) {
+            int nx, ny, nz, dist;
+            ss >> nx >> ny >> nz >> dist;
+            Plane* plane = new Plane(Vect(nx, ny, nz), dist, CURRENT_COLOR);
+            scene_objects->push_back(dynamic_cast<Object*>(plane));
+            continue;
+        }
+        // END SCENE OBJECTS
+
+        // COLOUR
+        if ( op.compare("emission") == 0 ) {
+            RGBType emission;
+            ss >> emission.r >> emission.g >> emission.b;
+            CURRENT_COLOR.setEmission(emission);
+            continue;
+        }
+        if ( op.compare("specular") == 0 ) {
+            RGBType specular;
+            ss >> specular.r >> specular.g >> specular.b;
+            CURRENT_COLOR.setSpecular(specular);
+            continue;
+        }
+        if ( op.compare("diffuse") == 0 ) {
+            RGBType diffuse;
+            ss >> diffuse.r >> diffuse.g >> diffuse.b;
+            CURRENT_COLOR.setRed(diffuse.r);
+            CURRENT_COLOR.setGreen(diffuse.g);
+            CURRENT_COLOR.setBlue(diffuse.b);
+            continue;
+        }
+        if ( op.compare("shininess") == 0 ) {
+            double shine;
+            ss >> shine;
+            CURRENT_COLOR.setShine(shine);
+            continue;
+        }
+        // END COLOUR
+
+        // TRANSFORMATIONS
         if ( op.compare("popTransform") == 0 ) {
             // TODO Thou shalt beware of memory leaks
             TRANSFORMS.clear();
@@ -561,6 +634,7 @@ void readSceneFile(int argc, char* argv[], vector<Source*> *light_sources,
             TRANSFORMS.push_back(dynamic_cast<Transform*>(rotation));
             continue;
         }
+        // END TRANSFORMATIONS
     }
 
     sceneFile.close();
@@ -579,13 +653,6 @@ int main (int argc, char *argv[]) {
     // Measure the time of execution of the rendering
     clock_t t1, t2;
     t1 = clock();
-
-    Color white_light (1.0, 1.0, 1.0, 0.0);
-
-    Vect light_position (-7, 10, -10);
-    Light scene_light (light_position, white_light);
-
-    light_sources.push_back(dynamic_cast<Source*>(&scene_light));
 
     RGBType *pixels = raytrace(light_sources, scene_objects);
     savebmp(OUTFILE.c_str(), WIDTH, HEIGHT, pixels);

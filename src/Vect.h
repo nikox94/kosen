@@ -17,6 +17,13 @@ public:
     double getVectY() { return y; }
     double getVectZ() { return z; }
 
+    // define operator== for comparisons
+    bool operator==(const Vect& v) const
+    {
+        // TODO: Consider doing a |a-b| < \epsilon check, rather than a direct ==
+        return (this->x == v.x) && (this->y == v.y) && (this->z == v.z);
+    }
+
     // TODO:Rename to modulus
     double magnitude() {
         return sqrt(x*x+y*y+z*z);

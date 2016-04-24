@@ -1,7 +1,6 @@
-#Thousand Spheres
 size 640 480
 camera 0 0 0 0 0 -1 0 1 0 45
-output scene5.test.png
+output scene5.test.bmp
 
 maxdepth 5
 aadepth 1
@@ -25,7 +24,7 @@ vertex 0 -5 -12
 pushTransform
 
 rotate 0 0 1 45
-translate 10 0 0
+translate 5 0 -1
 scale 2 1 1
 tri 0 1 2
 popTransform

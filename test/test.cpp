@@ -15,6 +15,9 @@ TEST(VectTest, Magnitude) {
 
 TEST(VectTest, Normalise) {
   Vect a(5, 0, 0);
-  Vect b(1, 0, 0);
-  EXPECT_EQ(b, a.normalise());
+  Vect a_c(1, 0, 0);
+  Vect b(1, 1, 1);
+  Vect b_c(sqrt(1/3), sqrt(1/3), sqrt(1/3));
+  EXPECT_EQ(a_c, a.normalise());
+  EXPECT_EQ(b_c, b.normalise());
 }

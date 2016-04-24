@@ -20,8 +20,12 @@ public:
     // define operator== for comparisons
     bool operator==(const Vect& v) const
     {
-        // TODO: Consider doing a |a-b| < \epsilon check, rather than a direct ==
-        return (this->x == v.x) && (this->y == v.y) && (this->z == v.z);
+        // TODO: "Extract" the epsilon to a global var
+        double epsilon = 1E-6;
+        double x_diff = fabs(this->x - v.x);
+        double y_diff = fabs(this->y - v.y);
+        double z_diff = fabs(this->z - v.z);
+        return (x_diff < epsilon) && (y_diff < epsilon) && (z_diff < epsilon);
     }
 
     // TODO:Rename to modulus

@@ -215,7 +215,6 @@ Color getColorAt(Vect intersection_position, Vect intersecting_ray_direction, ve
                                                                  ambientlight,
                                                                  light_sources
                                                                 );
-                cout << "System recursive call performed."<<endl;
                 final_color = final_color.add(reflection_intersection_color.scale(winning_object_color.getSpecial()));
             }
         }
@@ -306,44 +305,22 @@ RGBType* raytrace (vector<Source*> light_sources, vector<Object*> scene_objects)
                     aa_index = aay*aadepth + aax;
                     srand(time(0));
 
-                    // create the ray from the camera to this pixel
-                    if (aadepth == 1) {
-                        // No anti-aliasing
-                        if (WIDTH > HEIGHT) {
-                            // the image is wider than it is tall
-                            xamnt = (((x + 0.5)/WIDTH)*aspectratio - ((WIDTH-HEIGHT)/ (double) HEIGHT));
-                            yamnt = ((HEIGHT - y) + 0.5)/HEIGHT;
-                        }
-                        else if (HEIGHT > WIDTH) {
-                            // the image is taller than it is wide
-                            xamnt = (x+0.5)/WIDTH;
-                            yamnt = ((((HEIGHT - y) + 0.5)/HEIGHT)/aspectratio - ((HEIGHT - WIDTH)/(double) WIDTH)/2);
-                        }
-                        else {
-                            // the image is square
-                            xamnt = (x+0.5)/WIDTH;
-                            yamnt = ((HEIGHT - y) + 0.5)/HEIGHT;
-                        }
-                    }
-                    else
-                    {
-                        double offset = (double) aax/((double) aadepth - 1);
-                        // anti-aliasing
-                        if (WIDTH > HEIGHT) {
-                            // the image is wider than it is tall
-                            xamnt = (((x + offset)/WIDTH)*aspectratio - ((WIDTH-HEIGHT)/ (double) HEIGHT));
-                            yamnt = ((HEIGHT - y) + offset)/HEIGHT;
-                        }
-                        else if (HEIGHT > WIDTH) {
-                            // the image is taller than it is wide
-                            xamnt = (x+offset)/WIDTH;
-                            yamnt = (((HEIGHT - y) + offset)/HEIGHT)/aspectratio - ((HEIGHT - WIDTH)/(double) WIDTH)/2;
-                        }
-                        else {
-                            // the image is square
-                            xamnt = (x+offset)/WIDTH;
-                            yamnt = ((HEIGHT - y) + offset)/HEIGHT;
-                        }
+                    // Create the ray from the camera to this pixel
+
+                    double offset = (aadepth == 1 ? 0.5 : (double) aax/((double) aadepth - 1));
+                    // anti-aliasing
+                    if (WIDTH > HEIGHT) {
+                        // the image is wider than it is tall
+                        xamnt = (((x + offset)/WIDTH)*aspectratio - ((WIDTH-HEIGHT)/ (double) HEIGHT));
+                        yamnt = ((HEIGHT - y) + offset)/HEIGHT;
+                    } else if (HEIGHT > WIDTH) {
+                        // the image is taller than it is wide
+                        xamnt = (x+offset)/WIDTH;
+                        yamnt = (((HEIGHT - y) + offset)/HEIGHT)/aspectratio - ((HEIGHT - WIDTH)/(double) WIDTH);
+                    } else {
+                        // the image is square
+                        xamnt = (x+offset)/WIDTH;
+                        yamnt = ((HEIGHT - y) + offset)/HEIGHT;
                     }
 
                     Vect cam_ray_origin = SCENE_CAM.getCameraPosition();

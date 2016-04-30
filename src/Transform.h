@@ -8,18 +8,18 @@
  * Parent class for all scene Transforms.
  */
 class Transform {
-        public:
+public:
 
-        Transform ();
+    Transform ();
 
-        // method functions
-        virtual Vect apply (Vect vector) { return Vect(0.0, 0.0, 0.0); }
+    // method functions
+    virtual Vect apply (Vect vector) { return Vect(0.0, 0.0, 0.0); }
 
-        virtual Ray apply (Ray ray) {return Ray(); }
+    virtual Ray apply (Ray ray) {return Ray(); }
 
-        virtual Transform* inverse () {
-            return new Transform();
-        }
+    virtual Transform* inverse () {
+        return new Transform();
+    }
 
 };
 

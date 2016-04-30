@@ -85,7 +85,7 @@ TEST(VectTest, Add) {
   Vect d(-1000, 2500, -1500);
   Vect cd_c(-1001, 2500, -1501);
   EXPECT_EQ(ab_c, a.add(b));
-  EXPECT_EQ(ba_c, b.add(a));
+  EXPECT_EQ(ba_c, b.add(a)); 
   EXPECT_EQ(ac_c, a.add(c));
   EXPECT_EQ(cd_c, c.add(d));
 }
@@ -119,3 +119,7 @@ TEST(VectTest, getVectBetweenTwoPoints) {
   EXPECT_EQ(ac_c, a.getVectBetweenTwoPoints(c));
   EXPECT_EQ(cd_c, c.getVectBetweenTwoPoints(d));
 }
+
+/*
+ * ObjectTest
+ */

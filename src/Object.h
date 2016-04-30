@@ -9,20 +9,22 @@
  * Parent class for all scene objects.
  */
 class Object {
-        public:
+public:
 
-        Object ();
+    Object ();
 
-        // method functions
-        virtual Color getColor () { return Color(0.0, 0.0, 0.0, 0); }
+    // method functions
+    virtual Color getColor () { return Color(0.0, 0.0, 0.0, 0); }
 
-        virtual Vect getNormalAt(Vect point) {
-            return Vect(0, 0, 0);
-        }
+    virtual Vect getNormalAt(Vect point) {
+        return Vect(0, 0, 0);
+    }
 
-        virtual double findIntersection(Ray ray) {
-            return 0;
-        }
+    // This returns the intersection point as a multiple of the ray.
+    // Let return := t, then t*ray is the position of the point of intersection.
+    virtual double findIntersection(Ray ray) {
+        return 0;
+    }
 
 };
 

@@ -7,56 +7,56 @@
 #include <Color.h>
 
 class Plane : public Object {
-        Vect normal;
-        double distance;
-        Color color;
+    Vect normal;
+    double distance;
+    Color color;
 
-        public:
+public:
 
-        Plane ();
+    Plane ();
 
-        Plane (Vect, double, Color);
+    Plane (Vect, double, Color);
 
-        // method functions
-        Vect getNormal () { return normal; }
-        double getDistance() { return distance; }
-        virtual Color getColor () { return color; }
+    // method functions
+    Vect getNormal () { return normal; }
+    double getDistance() { return distance; }
+    virtual Color getColor () { return color; }
 
-        virtual Vect getNormalAt(Vect point) {
-            return normal;
+    virtual Vect getNormalAt(Vect point) {
+        return normal;
+    }
+
+    virtual double findIntersection(Ray ray) {
+        Vect ray_direction = ray.getRayDirection();
+
+        // TODO: check case ray_dir = - normal, but
+        // still intersecting plane
+        double a = ray_direction.dot(normal);
+
+        // TODO: Careful about floats and comparing to 0.
+        // Consider |a|< \epsilon
+        if (a == 0) {
+            // ray is parallel to the plane
+            return -1;
         }
-
-        virtual double findIntersection(Ray ray) {
-            Vect ray_direction = ray.getRayDirection();
-
-            // TODO: check case ray_dir = - normal, but
-            // still intersecting plane
-            double a = ray_direction.dot(normal);
-
-            // TODO: Careful about floats and comparing to 0.
-            // Consider |a|< \epsilon
-            if (a == 0) {
-                // ray is parallel to the plane
-                return -1;
-            }
-            else {
-                double b = normal.dot(ray.getRayOrigin().add(normal.mult(distance).negative()));
-                return -1*b/a;
-            }
+        else {
+            double b = normal.dot(ray.getRayOrigin().add(normal.mult(distance).negative()));
+            return -1*b/a;
         }
+    }
 
 };
 
 Plane::Plane () {
-        normal = Vect(1,0,0);
-        distance = 0.0;
-        color = Color(0.5, 0.5, 0.5, 0);
+    normal = Vect(1,0,0);
+    distance = 0.0;
+    color = Color(0.5, 0.5, 0.5, 0);
 }
 
 Plane::Plane (Vect normal, double distance, Color color) {
-        this->normal = normal;
-        this->distance = distance;
-        this->color = color;
+    this->normal = normal;
+    this->distance = distance;
+    this->color = color;
 }
 
 #endif

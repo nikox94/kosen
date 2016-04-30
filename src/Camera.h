@@ -6,19 +6,19 @@
 class Camera {
     // TODO: The last three should always be normalised?
     Vect campos, camdir, camright, camdown;
-    
+
 public:
-    
+
     Camera ();
-    
+
     Camera (Vect, Vect, Vect, Vect);
-    
+
     // method functions
     Vect getCameraPosition () { return campos; }
-    Vect getCameraDirection() { return camdir; }   
+    Vect getCameraDirection() { return camdir; }
     Vect getCameraRight() { return camright; }
     Vect getCameraDown() { return camdown; }
-    
+
 };
 
 Camera::Camera () {

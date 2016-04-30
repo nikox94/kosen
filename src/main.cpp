@@ -120,12 +120,9 @@ void savebmp (const char *filename, int w, int h, RGBType *data) {
 
 /**
  * Gets an array of all objects that a ray intersects and finds the winning one's index.
- *
+ * The array of object_intersections should be guaranteed to be positive. ( > accuracy )
  */
 int winningObjectIndex(vector<double> object_intersections) {
-    // return the index of the winning intersections
-    int index_of_minimum_value;
-
     // prevent unnessecary calculations
     if (object_intersections.size() == 0) {
         // if there are no intersections
@@ -133,41 +130,20 @@ int winningObjectIndex(vector<double> object_intersections) {
     }
 
     if (object_intersections.size() == 1) {
-        if (object_intersections.at(0) > 0) {
-            // if that intersection is greater than zero then it's our index
-            return 0;
-        }
-        else {
-            // otherwise only intersection value is negative
-            return -1;
+        // if that intersection is greater than zero then it's our index
+        return 0;
+    }
+
+    int index_of_minimum_value = 0;
+    double minimum_value = object_intersections.at(0);
+    for (int i = 1; i < object_intersections.size(); i++) {
+        if (object_intersections.at(i) < minimum_value) {
+            minimum_value = object_intersections.at(i);
+            index_of_minimum_value = i;
         }
     }
 
-    // otherwise there is more than one intersection
-    // first find the maximum value
-    double max = 0;
-    for (int i = 0; i < object_intersections.size(); i++) {
-        if (max < object_intersections.at(i)) {
-            max = object_intersections.at(i);
-        }
-    }
-
-    // then starting from the maximum value find the minimum possible index
-    if (max > 0) {
-        // we only want positive intersections
-        // TODO: Algo can be optimised
-        for (int index = 0; index < object_intersections.size(); index++) {
-            if (object_intersections.at(index) > 0 && object_intersections.at(index) <= max) {
-                max = object_intersections.at(index);
-                index_of_minimum_value = index;
-            }
-        }
-        return index_of_minimum_value;
-    }
-    else {
-        // all the intersections were negative
-        return -1;
-    }
+    return index_of_minimum_value;
 }
 
 Color getColorAt(Vect intersection_position, Vect intersecting_ray_direction, vector<Object*> scene_objects,
@@ -193,10 +169,11 @@ Color getColorAt(Vect intersection_position, Vect intersecting_ray_direction, ve
         }
     }
 
+    // Ambient light
     Color final_color = winning_object_color.scale(ambientlight);
 
     // Reflections
-    if ( winning_object_color.getSpecial() > 0 && winning_object_color.getSpecial() <= 1) {
+    if (winning_object_color.getSpecial() > 0 && winning_object_color.getSpecial() <= 1) {
         // reflection from object with specular intensity
         double dot1 = winning_object_normal.dot(intersecting_ray_direction.negative());
         Vect scaled1 = winning_object_normal.mult(dot1);
@@ -238,13 +215,13 @@ Color getColorAt(Vect intersection_position, Vect intersecting_ray_direction, ve
                                                                  ambientlight,
                                                                  light_sources
                                                                 );
+                cout << "System recursive call performed."<<endl;
                 final_color = final_color.add(reflection_intersection_color.scale(winning_object_color.getSpecial()));
             }
         }
     }
 
-
-
+    // Process scene light
     for (int light_index = 0; light_index < light_sources.size() ; light_index++) {
         Vect light_direction = light_sources.at(light_index)->getPosition().add(intersection_position.negative()).normalise();
 
@@ -313,7 +290,7 @@ RGBType* raytrace (vector<Source*> light_sources, vector<Object*> scene_objects)
     int thisone, aa_index;
     double xamnt, yamnt;
     // Anti-aliasing
-    // Start with a blank pixel
+    // Start with blank pixels
     double tempRed[aadepth*aadepth];
     double tempGreen[aadepth*aadepth];
     double tempBlue[aadepth*aadepth];
@@ -371,16 +348,19 @@ RGBType* raytrace (vector<Source*> light_sources, vector<Object*> scene_objects)
 
                     Vect cam_ray_origin = SCENE_CAM.getCameraPosition();
                     Vect cam_ray_direction = SCENE_CAM.getCameraDirection()
-                                                        .add(SCENE_CAM.getCameraRight().mult(xamnt-0.5)
+                                                        .add(SCENE_CAM.getCameraRight().mult(xamnt - 0.5)
                                                         .add(SCENE_CAM.getCameraDown().mult(yamnt - 0.5)))
                                                         .normalise();
                     Ray cam_ray (cam_ray_origin, cam_ray_direction);
 
                     // Calculate all object intersections with cam_ray
                     vector<double> intersections;
+                    double intersection_multiplier;
 
                     for (int index = 0; index < scene_objects.size(); index++) {
-                        intersections.push_back(scene_objects.at(index)->findIntersection(cam_ray));
+                        intersection_multiplier = scene_objects.at(index)->findIntersection(cam_ray);
+                        if (intersection_multiplier > accuracy)
+                            intersections.push_back(intersection_multiplier);
                     }
 
                     int index_of_winning_object = winningObjectIndex(intersections);
@@ -389,8 +369,7 @@ RGBType* raytrace (vector<Source*> light_sources, vector<Object*> scene_objects)
                         tempRed[aa_index] = 0.0;
                         tempGreen[aa_index] = 0.0;
                         tempBlue[aa_index] = 0.0;
-                    }
-                    else {
+                    } else {
                         if(intersections.at(index_of_winning_object) > accuracy) {
                             // determine the position and direction vectors at intersection
 

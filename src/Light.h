@@ -28,15 +28,18 @@ public:
     AttenuationType setAttenuation(AttenuationType attenuationValue) {
         attenuation = attenuationValue;
     }
+
     AttenuationType setAttenuation(double c, double l, double q) {
         attenuation.constant = c;
         attenuation.linear = l;
         attenuation.quadratic = q;
     }
 
+    virtual double getAttenuationConstant() { return attenuation.constant; }
+    virtual double getAttenuationLinear() { return attenuation.linear; }
+    virtual double getAttenuationQuadratic() { return attenuation.quadratic; }
     virtual Vect getPosition() { return position; }
     virtual Color getColor() { return color; }
-
 };
 
 Light::Light () {

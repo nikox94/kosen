@@ -146,10 +146,12 @@ int winningObjectIndex(vector<double> object_intersections) {
     return index_of_minimum_value;
 }
 
-Color getColorAt(Vect intersection_position, Vect intersecting_ray_direction, vector<Object*> scene_objects,
-                 int index_of_winning_object, double accuracy, double ambientlight, vector<Source*> light_sources){
-    Color winning_object_color = scene_objects.at(index_of_winning_object)->getColor();
-    Vect winning_object_normal = scene_objects.at(index_of_winning_object)->getNormalAt(intersection_position);
+RGBType getColorAt(Vect intersection_position, Vect intersecting_ray_direction, vector<Object*> scene_objects,
+                 int index_of_winning_object, double accuracy, double ambientlight, vector<Source*> light_sources, int recursion_depth){
+    Object* winning_object = scene_objects.at(index_of_winning_object);
+    Vect winning_object_normal = winning_object->getNormalAt(intersection_position);
+    Color winning_object_color = winning_object->getColor();
+    RGBType final_color = winning_object_color.getAmbient() + winning_object_color.getEmission();
 
     // Checkerboard pattern
     if (winning_object_color.getSpecial() == 2.0) {
@@ -169,11 +171,8 @@ Color getColorAt(Vect intersection_position, Vect intersecting_ray_direction, ve
         }
     }
 
-    // Ambient light
-    Color final_color = winning_object_color.scale(ambientlight);
-
     // Reflections
-    if (winning_object_color.getSpecial() > 0 && winning_object_color.getSpecial() <= 1) {
+    if (recursion_depth < MAXDEPTH && winning_object_color.getSpecial() > 0 && winning_object_color.getSpecial() <= 1) {
         // reflection from object with specular intensity
         double dot1 = winning_object_normal.dot(intersecting_ray_direction.negative());
         Vect scaled1 = winning_object_normal.mult(dot1);
@@ -188,7 +187,6 @@ Color getColorAt(Vect intersection_position, Vect intersecting_ray_direction, ve
         // determine what the ray intersects with first
         vector<double> reflection_intersections;
 
-        // TODO: Think about a more natural limit for reflections
         for (int reflection_index = 0; reflection_index < scene_objects.size() ; reflection_index++) {
             reflection_intersections.push_back(scene_objects.at(reflection_index)->findIntersection(reflection_ray));
         }
@@ -207,22 +205,25 @@ Color getColorAt(Vect intersection_position, Vect intersecting_ray_direction, ve
                 Vect reflection_intersection_ray_direction = reflection_direction;
 
                 // Recursive call
-                Color reflection_intersection_color = getColorAt(reflection_intersection_position,
+                RGBType reflection_intersection_color = getColorAt(reflection_intersection_position,
                                                                  reflection_intersection_ray_direction,
                                                                  scene_objects,
                                                                  index_of_winning_object_with_reflection,
                                                                  accuracy,
                                                                  ambientlight,
-                                                                 light_sources
+                                                                 light_sources,
+                                                                 recursion_depth + 1
                                                                 );
-                final_color = final_color.add(reflection_intersection_color.scale(winning_object_color.getSpecial()));
+                final_color += reflection_intersection_color * winning_object_color.getSpecular();
             }
         }
     }
 
     // Process scene light
     for (int light_index = 0; light_index < light_sources.size() ; light_index++) {
-        Vect light_direction = light_sources.at(light_index)->getPosition().add(intersection_position.negative()).normalise();
+        Source* light = light_sources.at(light_index);
+        Vect light_direction = light->getPosition().add(intersection_position.negative()).normalise();
+        Vect half_angle_vector = light_direction.add(intersecting_ray_direction.negative()).normalise();
 
         float cosine_angle = winning_object_normal.dot(light_direction);
 
@@ -230,10 +231,10 @@ Color getColorAt(Vect intersection_position, Vect intersecting_ray_direction, ve
             // test for shadows
             bool shadowed = false;
 
-            Vect distance_to_light = light_sources.at(light_index)->getPosition().add(intersection_position.negative()).normalise();
+            Vect distance_to_light = light->getPosition().add(intersection_position.negative()).normalise();
             float distance_to_light_magnitude = distance_to_light.magnitude();
 
-            Ray shadow_ray (intersection_position, light_sources.at(light_index)->getPosition().add(intersection_position.negative()).normalise());
+            Ray shadow_ray (intersection_position, light->getPosition().add(intersection_position.negative()).normalise());
 
             vector<double> secondary_intersections;
 
@@ -251,9 +252,16 @@ Color getColorAt(Vect intersection_position, Vect intersecting_ray_direction, ve
             }
 
             if (shadowed == false) {
-                final_color = final_color.add(winning_object_color.multiply(light_sources.at(light_index)->getColor().scale(cosine_angle)));
+                //final_color = final_color.add(winning_object_color.multiply(light_sources.at(light_index)->getColor().scale(cosine_angle)));
+                double light_scale= (light->getColor().getDiffuse().brightness() /
+                                         (light->getAttenuationConstant() +
+                                          light->getAttenuationLinear() * distance_to_light_magnitude +
+                                          light->getAttenuationQuadratic() * distance_to_light_magnitude * distance_to_light_magnitude));
+                RGBType diffuse_contribution = winning_object_color.getDiffuse() * fmax(winning_object_normal.dot(light_direction), 0);
+                RGBType specular_contribution = winning_object_color.getSpecular() * pow(fmax(winning_object_normal.dot(half_angle_vector), 0), winning_object_color.getShine());
+                final_color += (diffuse_contribution + specular_contribution) * light_scale;
 
-                if (winning_object_color.getSpecial() > 0 && winning_object_color.getSpecial() <= 1) {
+                /*if (winning_object_color.getSpecial() > 0 && winning_object_color.getSpecial() <= 1) {
                     // special \in [0,1]
                     double dot1 = winning_object_normal.dot(intersecting_ray_direction.negative());
                     Vect scalar1 = winning_object_normal.mult(dot1);
@@ -267,7 +275,7 @@ Color getColorAt(Vect intersection_position, Vect intersecting_ray_direction, ve
                         specular = pow(specular, 10);
                         final_color = final_color.add(light_sources.at(light_index)->getColor().scale(specular*winning_object_color.getSpecial()));
                     }
-                }
+                }*/
             }
         }
     }
@@ -353,16 +361,18 @@ RGBType* raytrace (vector<Source*> light_sources, vector<Object*> scene_objects)
                             Vect intersection_position = cam_ray_origin.add(cam_ray_direction.mult(intersections.at(index_of_winning_object)));
                             Vect intersecting_ray_direction = cam_ray_direction;
 
-                            Color current_obj_color = getColorAt(intersection_position,
+                            RGBType current_obj_color = getColorAt(intersection_position,
                                                                  intersecting_ray_direction,
                                                                  scene_objects,
                                                                  index_of_winning_object,
                                                                  accuracy,
                                                                  ambientlight,
-                                                                 light_sources);
-                            tempRed[aa_index] = current_obj_color.getRed();
-                            tempGreen[aa_index] = current_obj_color.getGreen();
-                            tempBlue[aa_index] = current_obj_color.getBlue();
+                                                                 light_sources,
+                                                                 0
+                                                                );
+                            tempRed[aa_index] = current_obj_color.r;
+                            tempGreen[aa_index] = current_obj_color.g;
+                            tempBlue[aa_index] = current_obj_color.b;
                         }
                     }
                     // end of Anti-aliasing loop

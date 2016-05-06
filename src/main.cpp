@@ -51,7 +51,7 @@ static Camera SCENE_CAM;
 static vector<Transform*> TRANSFORMS;
 // This tracks the currently active colour within the inputfile
 static Color CURRENT_COLOR;
-static AttenuationType CURRENT_ATTENUATION;
+static AttenuationType CURRENT_ATTENUATION = AttenuationType(1, 0, 0);
 
 
 void savebmp (const char *filename, int w, int h, RGBType *data) {

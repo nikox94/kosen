@@ -12,9 +12,7 @@ struct RGBType {
 
     // default + parameterized constructor
     RGBType(double r=0, double g=0, double b=0)
-        : r(r), g(g), b(b)
-    {
-    }
+        : r(r), g(g), b(b) {}
 
     RGBType& operator=(const RGBType& a)
     {

@@ -7,6 +7,10 @@
 
 struct AttenuationType {
     double constant, linear, quadratic;
+
+    // default + parameterized constructor
+    AttenuationType (double c=1, double l=0, double q=0)
+        : constant(c), linear(l), quadratic(q) {}
 };
 
 /**

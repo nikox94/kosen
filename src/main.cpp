@@ -36,6 +36,11 @@
 
 using namespace std;
 
+struct IndexedDouble {
+    double value;
+    int index;
+};
+
 // These are external variables to be used in the program
 static int WIDTH = 640, HEIGHT = 480, DPI = 72;
 static int MAXDEPTH = 5, AADEPTH = 1;
@@ -122,28 +127,30 @@ void savebmp (const char *filename, int w, int h, RGBType *data) {
  * Gets an array of all objects that a ray intersects and finds the winning one's index.
  * The array of object_intersections should be guaranteed to be positive. ( > accuracy )
  */
-int winningObjectIndex(vector<double> object_intersections) {
+IndexedDouble winningObjectMultiplier(vector<IndexedDouble> object_intersections) {
     // prevent unnessecary calculations
     if (object_intersections.size() == 0) {
         // if there are no intersections
-        return -1;
+        IndexedDouble result = IndexedDouble();
+        result.index = -1;
+        return result;
     }
 
     if (object_intersections.size() == 1) {
         // if that intersection is greater than zero then it's our index
-        return 0;
+        return object_intersections.at(0);
     }
 
-    int index_of_minimum_value = 0;
-    double minimum_value = object_intersections.at(0);
+    int internal_index_of_min_val = 0;
+    double minimum_value = object_intersections.at(0).value;
     for (int i = 1; i < object_intersections.size(); i++) {
-        if (object_intersections.at(i) < minimum_value) {
-            minimum_value = object_intersections.at(i);
-            index_of_minimum_value = i;
+        if (object_intersections.at(i).value < minimum_value) {
+            minimum_value = object_intersections.at(i).value;
+            internal_index_of_min_val = i;
         }
     }
 
-    return index_of_minimum_value;
+    return object_intersections.at(internal_index_of_min_val);
 }
 
 RGBType getColorAt(Vect intersection_position, Vect intersecting_ray_direction, vector<Object*> scene_objects,
@@ -185,38 +192,39 @@ RGBType getColorAt(Vect intersection_position, Vect intersecting_ray_direction, 
         Ray reflection_ray (intersection_position, reflection_direction);
 
         // determine what the ray intersects with first
-        vector<double> reflection_intersections;
+        vector<IndexedDouble> reflection_intersections;
+        IndexedDouble reflection_multiplier;
 
         for (int reflection_index = 0; reflection_index < scene_objects.size() ; reflection_index++) {
-            reflection_intersections.push_back(scene_objects.at(reflection_index)->findIntersection(reflection_ray));
-        }
-
-        int index_of_winning_object_with_reflection = winningObjectIndex(reflection_intersections);
-
-        if (index_of_winning_object_with_reflection != -1) {
-            // reflection ray did not intersect with anything else
-            if (reflection_intersections.at(index_of_winning_object_with_reflection) > accuracy) {
-                // determine position and direction at the point of intersection
-                // with the ray
-                // the ray only affects the color if it reflected off of something
-                Vect reflection_intersection_position = intersection_position
-                                                          .add(reflection_direction
-                                                          .mult(reflection_intersections.at(index_of_winning_object_with_reflection)));
-                Vect reflection_intersection_ray_direction = reflection_direction;
-
-                // Recursive call
-                RGBType reflection_intersection_color = getColorAt(reflection_intersection_position,
-                                                                 reflection_intersection_ray_direction,
-                                                                 scene_objects,
-                                                                 index_of_winning_object_with_reflection,
-                                                                 accuracy,
-                                                                 ambientlight,
-                                                                 light_sources,
-                                                                 recursion_depth + 1
-                                                                );
-                final_color += reflection_intersection_color * winning_object_color.getSpecular();
+            reflection_multiplier.value = scene_objects.at(reflection_index)->findIntersection(reflection_ray);
+            if (reflection_multiplier.value > accuracy) {
+                reflection_multiplier.index = reflection_index;
+                reflection_intersections.push_back(reflection_multiplier);
             }
         }
+
+        if (reflection_intersections.size() != 0) {
+            // reflection ray did intersect
+
+            IndexedDouble winning_object_with_reflection_multiplier = winningObjectMultiplier(reflection_intersections);
+            Vect reflection_intersection_position = intersection_position
+            .add(reflection_direction
+            .mult(winning_object_with_reflection_multiplier.value));
+            Vect reflection_intersection_ray_direction = reflection_direction;
+
+            // Recursive call
+            RGBType reflection_intersection_color = getColorAt(reflection_intersection_position,
+                                                               reflection_intersection_ray_direction,
+                                                               scene_objects,
+                                                               winning_object_with_reflection_multiplier.index,
+                                                               accuracy,
+                                                               ambientlight,
+                                                               light_sources,
+                                                               recursion_depth + 1
+            );
+            final_color += reflection_intersection_color * winning_object_color.getSpecial();
+        }
+    // End of reflections
     }
 
     // Process scene light
@@ -339,46 +347,43 @@ RGBType* raytrace (vector<Source*> light_sources, vector<Object*> scene_objects)
                     Ray cam_ray (cam_ray_origin, cam_ray_direction);
 
                     // Calculate all object intersections with cam_ray
-                    vector<double> intersections;
-                    double intersection_multiplier;
+                    vector<IndexedDouble> intersections;
+                    IndexedDouble intersection_multiplier;
 
                     for (int index = 0; index < scene_objects.size(); index++) {
-                        intersection_multiplier = scene_objects.at(index)->findIntersection(cam_ray);
-                        if (intersection_multiplier > accuracy)
+                        intersection_multiplier.value = scene_objects.at(index)->findIntersection(cam_ray);
+                        if (intersection_multiplier.value > accuracy) {
+                            intersection_multiplier.index = index;
                             intersections.push_back(intersection_multiplier);
+                        }
                     }
 
-                    int index_of_winning_object = winningObjectIndex(intersections);
-
-                    if(index_of_winning_object == -1) {
+                    if(intersections.size() == 0) {
                         tempRed[aa_index] = 0.0;
                         tempGreen[aa_index] = 0.0;
                         tempBlue[aa_index] = 0.0;
                     } else {
-                        if(intersections.at(index_of_winning_object) > accuracy) {
-                            // determine the position and direction vectors at intersection
+                        IndexedDouble winning_object_multiplier = winningObjectMultiplier(intersections);
 
-                            Vect intersection_position = cam_ray_origin.add(cam_ray_direction.mult(intersections.at(index_of_winning_object)));
-                            Vect intersecting_ray_direction = cam_ray_direction;
+                        // determine the position and direction vectors at intersection
+                        Vect intersection_position = cam_ray_origin.add(cam_ray_direction.mult(winning_object_multiplier.value));
+                        Vect intersecting_ray_direction = cam_ray_direction;
 
-                            RGBType current_obj_color = getColorAt(intersection_position,
-                                                                 intersecting_ray_direction,
-                                                                 scene_objects,
-                                                                 index_of_winning_object,
-                                                                 accuracy,
-                                                                 ambientlight,
-                                                                 light_sources,
-                                                                 0
-                                                                );
-                            tempRed[aa_index] = current_obj_color.r;
-                            tempGreen[aa_index] = current_obj_color.g;
-                            tempBlue[aa_index] = current_obj_color.b;
-                        }
+                        RGBType current_obj_color = getColorAt(intersection_position,
+                                                               intersecting_ray_direction,
+                                                               scene_objects,
+                                                               winning_object_multiplier.index,
+                                                               accuracy,
+                                                               ambientlight,
+                                                               light_sources,
+                                                               0);
+                        tempRed[aa_index] = current_obj_color.r;
+                        tempGreen[aa_index] = current_obj_color.g;
+                        tempBlue[aa_index] = current_obj_color.b;
                     }
-                    // end of Anti-aliasing loop
+                // end of Anti-aliasing loop
                 }
             }
-            // end of pixel loop
 
             // average the pixel color
             double totalRed = 0;
@@ -404,6 +409,7 @@ RGBType* raytrace (vector<Source*> light_sources, vector<Object*> scene_objects)
             pixels[thisone].r = avgRed;
             pixels[thisone].g = avgGreen;
             pixels[thisone].b = avgBlue;
+            // end of pixel loop
         }
     }
     return pixels;
@@ -569,6 +575,12 @@ void readSceneFile(int argc, char* argv[], vector<Source*> *light_sources,
             double shine;
             ss >> shine;
             CURRENT_COLOR.setShine(shine);
+            continue;
+        }
+        if ( op.compare("special") == 0 ) {
+            double special;
+            ss >> special;
+            CURRENT_COLOR.setSpecial(special);
             continue;
         }
         // END COLOUR

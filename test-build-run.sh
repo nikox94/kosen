@@ -27,4 +27,4 @@ else
 fi
 
 # Run
-./raytracing scene5.test
+./raytracing scene1.test
